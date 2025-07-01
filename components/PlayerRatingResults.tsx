@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { Vote, Player } from '../types';
 import { Card } from './ui/Card';
@@ -37,12 +38,36 @@ const PlayerRatingResults: React.FC<PlayerRatingResultsProps> = ({ vote }) => {
     const highestAvgRating = useMemo(() => {
         return Math.max(0, ...Object.values(playerRatings).map(r => r.avg));
     }, [playerRatings]);
+    
+    const groupedComments = useMemo(() => {
+        const commentsByPlayer: { [playerName: string]: string[] } = {};
+        vote.options.forEach(option => {
+            const player = vote.players?.find(p => p.id === option.id);
+            if (player && option.comments && option.comments.length > 0) {
+                 if (!commentsByPlayer[player.name]) {
+                    commentsByPlayer[player.name] = [];
+                }
+                // Add only non-empty comments
+                const validComments = option.comments.filter(c => c.trim() !== '');
+                if(validComments.length > 0) {
+                    commentsByPlayer[player.name].push(...validComments);
+                }
+            }
+        });
+        // Convert to array for stable rendering order and filter out players with no comments
+        return Object.entries(commentsByPlayer)
+            .map(([playerName, comments]) => ({
+                playerName,
+                comments
+            }))
+            .filter(group => group.comments.length > 0);
+    }, [vote.options, vote.players]);
 
     const totalRaters = vote.options[0]?.ratingCount || 0;
 
     const PlayerResultRow: React.FC<{ player: Player }> = ({ player }) => {
         const ratingInfo = playerRatings[player.id];
-        const userRating = vote.userRatings?.[player.id];
+        const userRating = vote.userRatings?.[player.id]?.rating;
         const isHighest = ratingInfo && ratingInfo.avg.toFixed(2) === highestAvgRating.toFixed(2) && highestAvgRating > 0;
 
 
@@ -89,6 +114,26 @@ const PlayerRatingResults: React.FC<PlayerRatingResultsProps> = ({ vote }) => {
                     <h4 className="text-xl font-bold text-gray-800 mb-4">교체 선수</h4>
                     <div className="space-y-3">
                         {substitutes.map(player => <PlayerResultRow key={player.id} player={player} />)}
+                    </div>
+                </div>
+            )}
+            
+            {groupedComments.length > 0 && (
+                <div className="mt-8 pt-6 border-t">
+                    <h3 className="font-semibold text-lg text-gray-800 mb-4">팬들의 한 줄 평</h3>
+                    <div className="space-y-4">
+                       {groupedComments.map(({ playerName, comments }) => (
+                           <div key={playerName}>
+                               <h4 className="font-bold text-md text-gray-800 mb-2">{playerName}</h4>
+                               <div className="space-y-2 pl-4 border-l-2 border-gray-200">
+                                   {comments.map((comment, index) => (
+                                       <Card key={index} className="p-3 bg-gray-50/80">
+                                           <p className="text-sm text-gray-800">“ {comment} ”</p>
+                                       </Card>
+                                   ))}
+                               </div>
+                           </div>
+                       ))}
                     </div>
                 </div>
             )}

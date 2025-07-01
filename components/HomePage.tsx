@@ -29,7 +29,7 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, onNavigate
   return (
     <div className="space-y-8">
       <div className="text-center md:text-left">
-        <h2 className="text-3xl font-bold text-gray-900">오늘의 SoccerVote</h2>
+        <h2 className="text-3xl font-bold text-gray-900">오늘의 캐슬인포</h2>
         <p className="text-gray-500 mt-1">다양한 투표와 퀴즈에 참여해보세요!</p>
       </div>
       

@@ -1,5 +1,4 @@
-
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ToastMessage } from '../../contexts/ToastContext';
 import { CheckCircleIcon } from '../icons/CheckCircleIcon';
 import { ErrorIcon } from '../icons/ErrorIcon';
@@ -12,15 +11,30 @@ interface ToastProps {
 }
 
 const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
+  const [isExiting, setIsExiting] = useState(false);
+
   useEffect(() => {
     const timer = setTimeout(() => {
-      onDismiss();
+      setIsExiting(true);
     }, 5000);
 
     return () => {
       clearTimeout(timer);
     };
-  }, [onDismiss]);
+  }, []);
+
+  useEffect(() => {
+    if (isExiting) {
+      const timer = setTimeout(() => {
+        onDismiss();
+      }, 350); // Match animation duration
+      return () => clearTimeout(timer);
+    }
+  }, [isExiting, onDismiss]);
+
+  const handleDismiss = () => {
+    setIsExiting(true);
+  };
 
   const typeStyles = {
     success: {
@@ -46,7 +60,7 @@ const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
   const styles = typeStyles[toast.type];
 
   return (
-    <div className={`max-w-sm w-full shadow-lg rounded-lg pointer-events-auto ring-1 ring-black ring-opacity-5 overflow-hidden animate-toast-in border-l-4 ${styles.containerClasses}`} role="alert" aria-live="assertive">
+    <div className={`max-w-sm w-full shadow-lg rounded-lg pointer-events-auto ring-1 ring-black ring-opacity-5 overflow-hidden border-l-4 ${styles.containerClasses} ${isExiting ? 'animate-toast-center-out' : 'animate-toast-center-in'}`} role="alert" aria-live="assertive">
       <div className="p-4">
         <div className="flex items-start">
           <div className="flex-shrink-0">
@@ -57,7 +71,7 @@ const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
           </div>
           <div className="ml-4 flex-shrink-0 flex">
             <button
-              onClick={onDismiss}
+              onClick={handleDismiss}
               className={`inline-flex rounded-md focus:outline-none focus:ring-2 ${styles.buttonClasses}`}
             >
               <span className="sr-only">Close</span>

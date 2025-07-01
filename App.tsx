@@ -48,17 +48,20 @@ const AppContent: React.FC = () => {
     );
   }, []);
   
-  const handlePlayerRatingSubmit = useCallback((ratingId: string, playerRatings: { [playerId: number]: number }) => {
+  const handlePlayerRatingSubmit = useCallback((ratingId: string, playerRatings: { [playerId: number]: { rating: number; comment: string | null; }; }) => {
     setRatings(prevRatings =>
       prevRatings.map(rating => {
         if (rating.id === ratingId) {
           const newOptions = rating.options.map(option => {
-            const playerRating = playerRatings[option.id];
-            if (playerRating !== undefined) {
+            const playerRatingData = playerRatings[option.id];
+            if (playerRatingData) {
               return {
                 ...option,
-                votes: option.votes + playerRating,
+                votes: option.votes + playerRatingData.rating,
                 ratingCount: (option.ratingCount || 0) + 1,
+                comments: playerRatingData.comment
+                  ? [...(option.comments || []), playerRatingData.comment]
+                  : (option.comments || []),
               };
             }
             return option;
@@ -91,6 +94,7 @@ const AppContent: React.FC = () => {
             label: p.name,
             votes: 0,
             ratingCount: 0,
+            comments: [],
         })),
     };
     setRatings(prevRatings => [ratingToAdd, ...prevRatings]);

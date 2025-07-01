@@ -39,20 +39,13 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote, onCancel 
     }
   }, [type]);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleOptionChange = (index: number, value: string) => {
-    const newOptions = [...options];
-    newOptions[index].label = value;
+    const newOptions = options.map((option, i) => {
+      if (i === index) {
+        return { ...option, label: value };
+      }
+      return option;
+    });
     setOptions(newOptions);
   };
 
@@ -71,8 +64,12 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote, onCancel 
   const handlePlayerListChange = (
     index: number, field: 'name' | 'team' | 'photoUrl', value: string
   ) => {
-    const newList = [...players];
-    newList[index][field] = value;
+    const newList = players.map((player, i) => {
+      if (i === index) {
+        return { ...player, [field]: value };
+      }
+      return player;
+    });
     setPlayers(newList);
   };
 
@@ -207,37 +204,25 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote, onCancel 
         </div>
 
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">대표 이미지 (선택)</label>
-            <div className="mt-1 flex justify-center items-center w-full px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                {imageUrl ? (
-                <div className="text-center">
-                    <img src={imageUrl} alt="Preview" className="mx-auto h-32 w-auto object-cover rounded-md" />
-                    <button
-                    type="button"
-                    onClick={() => setImageUrl(undefined)}
-                    className="mt-2 text-sm font-medium text-red-600 hover:text-red-500"
-                    >
-                    이미지 삭제
-                    </button>
-                </div>
-                ) : (
-                <div className="space-y-1 text-center">
-                    <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <div className="flex text-sm text-gray-600 justify-center">
-                    <label
-                        htmlFor="file-upload"
-                        className="relative cursor-pointer rounded-md bg-white font-medium text-[#0a54ff] focus-within:outline-none focus-within:ring-2 focus-within:ring-[#0a54ff] focus-within:ring-offset-2 hover:text-[#0048e6]"
-                    >
-                        <span>파일 업로드</span>
-                        <input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={handleImageChange} accept="image/*" />
-                    </label>
-                    </div>
-                    <p className="text-xs text-gray-500">PNG, JPG, GIF</p>
-                </div>
-                )}
+          <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700 mb-1">대표 이미지 URL (선택)</label>
+          <Input
+            id="imageUrl"
+            value={imageUrl || ''}
+            onChange={(e) => setImageUrl(e.target.value)}
+            placeholder="https://example.com/image.png"
+          />
+          {imageUrl && (
+            <div className="mt-4 text-center">
+              <img src={imageUrl} alt="Preview" className="mx-auto h-32 w-auto object-cover rounded-md border" />
+              <button
+                type="button"
+                onClick={() => setImageUrl(undefined)}
+                className="mt-2 text-sm font-medium text-red-600 hover:text-red-500"
+              >
+                이미지 링크 삭제
+              </button>
             </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -12,7 +12,7 @@ import { TrophyIcon } from './icons/TrophyIcon';
 interface VotePageProps {
   vote: Vote;
   onVote: (voteId: string, optionId: number) => void;
-  onRatePlayers: (voteId: string, ratings: { [playerId: number]: number }) => void;
+  onRatePlayers: (voteId: string, ratings: { [playerId: number]: { rating: number; comment: string | null; }; }) => void;
 }
 
 const VotePage: React.FC<VotePageProps> = ({ vote, onVote, onRatePlayers }) => {

@@ -22,20 +22,28 @@ const CreateQuizPage: React.FC<CreateQuizPageProps> = ({ onCreateQuiz, onCancel 
   const { addToast } = useToast();
 
   const handleQuestionChange = (qIndex: number, field: 'text' | 'imageUrl', value: string) => {
-    const newQuestions = [...questions];
-    const currentQuestion = { ...newQuestions[qIndex] };
-    if (field === 'imageUrl') {
-        currentQuestion.imageUrl = value;
-    } else {
-        currentQuestion.text = value;
-    }
-    newQuestions[qIndex] = currentQuestion;
+    const newQuestions = questions.map((q, i) => {
+      if (i === qIndex) {
+        return { ...q, [field]: value };
+      }
+      return q;
+    });
     setQuestions(newQuestions);
   };
 
   const handleOptionChange = (qIndex: number, oIndex: number, value: string) => {
-    const newQuestions = [...questions];
-    newQuestions[qIndex].options[oIndex].text = value;
+    const newQuestions = questions.map((question, cqIndex) => {
+      if (qIndex === cqIndex) {
+        const newOptions = question.options.map((option, coIndex) => {
+          if (oIndex === coIndex) {
+            return { ...option, text: value };
+          }
+          return option;
+        });
+        return { ...question, options: newOptions };
+      }
+      return question;
+    });
     setQuestions(newQuestions);
   };
   
@@ -77,15 +85,6 @@ const CreateQuizPage: React.FC<CreateQuizPageProps> = ({ onCreateQuiz, onCancel 
     setQuestions(questions.filter((_, index) => index !== qIndex));
   };
   
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onloadend = () => setImageUrl(reader.result as string);
-      reader.readAsDataURL(file);
-    }
-  };
-  
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if(title.trim() === '') {
@@ -105,7 +104,7 @@ const CreateQuizPage: React.FC<CreateQuizPageProps> = ({ onCreateQuiz, onCancel 
         return;
     }
     
-    onCreateQuiz({ title, description, imageUrl, questions: validQuestions });
+    onCreateQuiz({ title: title.trim(), description: description.trim(), imageUrl, questions: validQuestions });
   };
 
   return (
@@ -121,7 +120,15 @@ const CreateQuizPage: React.FC<CreateQuizPageProps> = ({ onCreateQuiz, onCancel 
           <Input as="textarea" id="description" value={description} onChange={e => setDescription(e.target.value)} placeholder="퀴즈에 대한 간단한 설명을 입력하세요." />
         </div>
         
-        {/* Image Uploader */}
+        <div>
+          <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700 mb-1">퀴즈 대표 이미지 URL (선택)</label>
+          <Input
+            id="imageUrl"
+            value={imageUrl || ''}
+            onChange={e => setImageUrl(e.target.value)}
+            placeholder="퀴즈를 나타내는 이미지 링크를 입력하세요."
+          />
+        </div>
 
         <h3 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">질문 설정</h3>
         <div className="space-y-6">
@@ -135,6 +142,12 @@ const CreateQuizPage: React.FC<CreateQuizPageProps> = ({ onCreateQuiz, onCancel 
                         <Input placeholder="질문을 입력하세요" value={q.text} onChange={e => handleQuestionChange(qIndex, 'text', e.target.value)} required/>
                     </div>
                     <div className="pl-8 space-y-3">
+                        <Input 
+                            placeholder="질문 이미지 URL (선택)" 
+                            value={q.imageUrl || ''} 
+                            onChange={e => handleQuestionChange(qIndex, 'imageUrl', e.target.value)}
+                            className="text-sm"
+                        />
                         <p className="text-sm text-gray-600">선택지를 입력하고 정답을 선택하세요.</p>
                         {q.options.map((opt, oIndex) => (
                             <div key={oIndex} className="flex items-center gap-2">

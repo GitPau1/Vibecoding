@@ -10,6 +10,7 @@ export interface VoteOption {
   label: string;
   votes: number;
   ratingCount?: number;
+  comments?: string[];
 }
 
 export interface Player {
@@ -29,7 +30,7 @@ export interface Vote {
   options: VoteOption[];
   endDate: string;
   userVote?: number; // The id of the option the user voted for
-  userRatings?: { [key: number]: number };
+  userRatings?: { [key: number]: { rating: number; comment: string | null } };
   players?: Player[];
 }
 

@@ -31,8 +31,12 @@ const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating, onC
     list: typeof starters, setter: React.Dispatch<React.SetStateAction<typeof starters>>,
     index: number, field: 'name' | 'team' | 'photoUrl', value: string
   ) => {
-    const newList = [...list];
-    newList[index][field] = value;
+    const newList = list.map((player, i) => {
+        if (i === index) {
+            return { ...player, [field]: value };
+        }
+        return player;
+    });
     setter(newList);
   };
 

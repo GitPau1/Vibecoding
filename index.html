@@ -11,19 +11,33 @@
       body {
         font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
       }
-      @keyframes toast-in {
+      @keyframes toast-center-in {
         from {
-          transform: translateX(calc(100% + 1.25rem));
+          transform: translateY(-2rem) scale(0.95);
           opacity: 0;
         }
         to {
-          transform: translateX(0);
+          transform: translateY(0) scale(1);
           opacity: 1;
         }
       }
-      .animate-toast-in {
-        animation: toast-in 0.35s ease-out forwards;
+      @keyframes toast-center-out {
+        from {
+          transform: translateY(0) scale(1);
+          opacity: 1;
+        }
+        to {
+          transform: translateY(-2rem) scale(0.95);
+          opacity: 0;
+        }
       }
+      .animate-toast-center-in {
+        animation: toast-center-in 0.35s cubic-bezier(0.21, 1.02, 0.73, 1) forwards;
+      }
+      .animate-toast-center-out {
+        animation: toast-center-out 0.35s cubic-bezier(0.36, 0, 0.66, -0.56) forwards;
+      }
+
       /* Custom Range Slider Styles */
       .custom-range {
         -webkit-appearance: none;
