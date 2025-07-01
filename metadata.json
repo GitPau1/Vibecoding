@@ -1,0 +1,6 @@
+{
+  "name": "SoccerVote",
+  "description": "A responsive voting web app for football fans to vote on match outcomes, best players, and hot topics. It features a clean, modern interface optimized for all devices.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
