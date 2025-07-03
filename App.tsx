@@ -1,6 +1,7 @@
 
-import React, { useState, useCallback } from 'react';
-import { Vote, VoteKind, Quiz, QuizQuestion, QuizQuestionOption, NewQuizQuestion, Player } from './types';
+import React, { useState, useCallback, useEffect } from 'react';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { Vote, Quiz, NewQuizQuestion } from './types';
 import { INITIAL_VOTES, INITIAL_QUIZZES, INITIAL_RATINGS } from './constants';
 import Header from './components/Header';
 import HomePage from './components/HomePage';
@@ -12,11 +13,6 @@ import CreateRatingPage from './components/CreateRatingPage';
 import QuizPage from './components/QuizPage';
 import { ToastProvider, useToast } from './contexts/ToastContext';
 
-type ViewState = {
-  page: 'home' | 'vote' | 'quiz' | 'rating' | 'create' | 'createVote' | 'createQuiz' | 'createRating';
-  id?: string;
-};
-
 export interface VoteCreationData extends Pick<Vote, 'title' | 'description' | 'type' | 'endDate' | 'imageUrl' | 'players'> {
   options: {label: string}[];
 }
@@ -26,13 +22,13 @@ const AppContent: React.FC = () => {
   const [votes, setVotes] = useState<Vote[]>(INITIAL_VOTES);
   const [ratings, setRatings] = useState<Vote[]>(INITIAL_RATINGS);
   const [quizzes, setQuizzes] = useState<Quiz[]>(INITIAL_QUIZZES);
-  const [view, setView] = useState<ViewState>({ page: 'home' });
+  const navigate = useNavigate();
+  const location = useLocation();
   const { addToast } = useToast();
 
-  const handleNavigate = useCallback((newView: ViewState) => {
-    setView(newView);
+  useEffect(() => {
     window.scrollTo(0, 0);
-  }, []);
+  }, [location.pathname]);
 
   const handleVote = useCallback((voteId: string, optionId: number) => {
     setVotes(prevVotes =>
@@ -81,9 +77,9 @@ const AppContent: React.FC = () => {
       options: newVoteData.options.map((opt, index) => ({ id: index + 1, label: opt.label, votes: 0 })),
     };
     setVotes(prevVotes => [voteToAdd, ...prevVotes]);
-    handleNavigate({ page: 'home' });
+    navigate('/');
     addToast('투표가 성공적으로 생성되었습니다.', 'success');
-  }, [handleNavigate, addToast]);
+  }, [navigate, addToast]);
 
   const handleCreateRating = useCallback((newRatingData: VoteCreationData) => {
     const ratingToAdd: Vote = {
@@ -98,9 +94,9 @@ const AppContent: React.FC = () => {
         })),
     };
     setRatings(prevRatings => [ratingToAdd, ...prevRatings]);
-    handleNavigate({ page: 'home' });
+    navigate('/');
     addToast('선수 평점이 성공적으로 생성되었습니다.', 'success');
-  }, [handleNavigate, addToast]);
+  }, [navigate, addToast]);
 
 
   const handleCreateQuiz = useCallback((newQuizData: Omit<Quiz, 'id' | 'questions'> & { questions: NewQuizQuestion[] }) => {
@@ -117,53 +113,24 @@ const AppContent: React.FC = () => {
           }))
       };
       setQuizzes(prevQuizzes => [newQuiz, ...prevQuizzes]);
-      handleNavigate({ page: 'home' });
+      navigate('/');
       addToast('퀴즈가 성공적으로 생성되었습니다.', 'success');
-  }, [handleNavigate, addToast]);
-
-
-  const renderContent = () => {
-    switch (view.page) {
-      case 'create':
-        return <CreateHubPage onNavigate={handleNavigate} />;
-      case 'createVote':
-        return <CreateVotePage onCreateVote={handleCreateVote} onCancel={() => handleNavigate({ page: 'create' })} />;
-      case 'createRating':
-        return <CreateRatingPage onCreateRating={handleCreateRating} onCancel={() => handleNavigate({ page: 'create' })} />;
-      case 'createQuiz':
-        return <CreateQuizPage onCreateQuiz={handleCreateQuiz} onCancel={() => handleNavigate({ page: 'create' })} />;
-      case 'vote':
-        const selectedVote = votes.find(v => v.id === view.id);
-        if (selectedVote) {
-          return <VotePage vote={selectedVote} onVote={handleVote} onRatePlayers={() => {}}/>;
-        }
-        handleNavigate({ page: 'home' });
-        return null;
-       case 'rating':
-        const selectedRating = ratings.find(r => r.id === view.id);
-        if (selectedRating) {
-          return <VotePage vote={selectedRating} onVote={() => {}} onRatePlayers={handlePlayerRatingSubmit}/>;
-        }
-        handleNavigate({ page: 'home' });
-        return null;
-      case 'quiz':
-        const selectedQuiz = quizzes.find(q => q.id === view.id);
-        if (selectedQuiz) {
-          return <QuizPage quiz={selectedQuiz} />;
-        }
-        handleNavigate({ page: 'home' });
-        return null;
-      case 'home':
-      default:
-        return <HomePage votes={votes} ratings={ratings} quizzes={quizzes} onNavigate={handleNavigate} />;
-    }
-  };
+  }, [navigate, addToast]);
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800">
-      <Header onGoHome={() => handleNavigate({ page: 'home' })} onCreate={() => handleNavigate({ page: 'create' })} />
+      <Header />
       <main className="container mx-auto max-w-4xl p-4 sm:p-6">
-        {renderContent()}
+        <Routes>
+            <Route path="/" element={<HomePage votes={votes} ratings={ratings} quizzes={quizzes} />} />
+            <Route path="/vote/:id" element={<VotePage votes={votes} onVote={handleVote} onRatePlayers={() => {}} />} />
+            <Route path="/rating/:id" element={<VotePage ratings={ratings} onVote={() => {}} onRatePlayers={handlePlayerRatingSubmit} />} />
+            <Route path="/quiz/:id" element={<QuizPage quizzes={quizzes} />} />
+            <Route path="/create" element={<CreateHubPage />} />
+            <Route path="/create/vote" element={<CreateVotePage onCreateVote={handleCreateVote} />} />
+            <Route path="/create/rating" element={<CreateRatingPage onCreateRating={handleCreateRating} />} />
+            <Route path="/create/quiz" element={<CreateQuizPage onCreateQuiz={handleCreateQuiz} />} />
+        </Routes>
       </main>
       <footer className="text-center p-6 text-sm text-gray-400">
         © 2024 SoccerVote. All rights reserved.

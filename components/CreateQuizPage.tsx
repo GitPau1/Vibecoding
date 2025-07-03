@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Quiz, NewQuizQuestion } from '../types';
 import { Card } from './ui/Card';
 import { Input } from './ui/Input';
@@ -9,10 +10,10 @@ import { useToast } from '../contexts/ToastContext';
 
 interface CreateQuizPageProps {
   onCreateQuiz: (quizData: Omit<Quiz, 'id' | 'questions'> & { questions: NewQuizQuestion[] }) => void;
-  onCancel: () => void;
 }
 
-const CreateQuizPage: React.FC<CreateQuizPageProps> = ({ onCreateQuiz, onCancel }) => {
+const CreateQuizPage: React.FC<CreateQuizPageProps> = ({ onCreateQuiz }) => {
+  const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
@@ -173,7 +174,7 @@ const CreateQuizPage: React.FC<CreateQuizPageProps> = ({ onCreateQuiz, onCancel 
 
 
         <div className="flex justify-end gap-4 pt-4 border-t">
-          <Button type="button" variant="outline" onClick={onCancel}>취소</Button>
+          <Button type="button" variant="outline" onClick={() => navigate(-1)}>취소</Button>
           <Button type="submit">퀴즈 생성하기</Button>
         </div>
       </form>

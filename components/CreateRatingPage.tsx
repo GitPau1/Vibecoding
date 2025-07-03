@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { VoteKind, Player } from '../types';
 import { VoteCreationData } from '../App';
 import { Card } from './ui/Card';
@@ -10,10 +11,10 @@ import { useToast } from '../contexts/ToastContext';
 
 interface CreateRatingPageProps {
   onCreateRating: (voteData: VoteCreationData) => void;
-  onCancel: () => void;
 }
 
-const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating, onCancel }) => {
+const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating }) => {
+  const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [endDate, setEndDate] = useState(new Date().toISOString().split("T")[0]); // Default to today
@@ -161,7 +162,7 @@ const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating, onC
         </div>
 
         <div className="flex justify-end gap-4 pt-4 border-t">
-          <Button type="button" variant="outline" onClick={onCancel}>취소</Button>
+          <Button type="button" variant="outline" onClick={() => navigate(-1)}>취소</Button>
           <Button type="submit">평점 생성하기</Button>
         </div>
       </form>

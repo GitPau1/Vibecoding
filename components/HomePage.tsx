@@ -7,10 +7,9 @@ interface HomePageProps {
   votes: Vote[];
   ratings: Vote[];
   quizzes: Quiz[];
-  onNavigate: (view: { page: 'vote' | 'quiz' | 'rating', id: string }) => void;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, onNavigate }) => {
+const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes }) => {
   const [activeTab, setActiveTab] = useState<'votes' | 'ratings' | 'quizzes'>('votes');
 
   const now = new Date();
@@ -66,7 +65,7 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, onNavigate
               {ongoingVotes.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {ongoingVotes.map(vote => (
-                    <VoteCard key={vote.id} vote={vote} onSelectVote={(id) => onNavigate({ page: 'vote', id })} />
+                    <VoteCard key={vote.id} vote={vote} />
                   ))}
                 </div>
               ) : (
@@ -82,7 +81,7 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, onNavigate
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">마감된 투표</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {finishedVotes.map(vote => (
-                    <VoteCard key={vote.id} vote={vote} onSelectVote={(id) => onNavigate({ page: 'vote', id })} />
+                    <VoteCard key={vote.id} vote={vote} />
                   ))}
                 </div>
               </section>
@@ -96,7 +95,7 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, onNavigate
             {sortedRatings.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {sortedRatings.map(rating => (
-                  <VoteCard key={rating.id} vote={rating} onSelectVote={(id) => onNavigate({ page: 'rating', id })} />
+                  <VoteCard key={rating.id} vote={rating} />
                 ))}
               </div>
             ) : (
@@ -114,7 +113,7 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, onNavigate
             {quizzes.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {quizzes.map(quiz => (
-                  <QuizCard key={quiz.id} quiz={quiz} onSelectQuiz={(id) => onNavigate({ page: 'quiz', id })} />
+                  <QuizCard key={quiz.id} quiz={quiz} />
                 ))}
               </div>
             ) : (

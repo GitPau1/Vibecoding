@@ -1,17 +1,26 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Quiz } from '../types';
 import { Card } from './ui/Card';
 
 interface QuizCardProps {
   quiz: Quiz;
-  onSelectQuiz: (quizId: string) => void;
 }
 
-const QuizCard: React.FC<QuizCardProps> = ({ quiz, onSelectQuiz }) => {
+const QuizCard: React.FC<QuizCardProps> = ({ quiz }) => {
+  const navigate = useNavigate();
+
+  const handleSelectQuiz = () => {
+    navigate(`/quiz/${quiz.id}`);
+  };
+
   return (
     <Card 
         className="flex flex-col h-full hover:shadow-lg transition-shadow duration-300 cursor-pointer overflow-hidden"
-        onClick={() => onSelectQuiz(quiz.id)}
+        onClick={handleSelectQuiz}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleSelectQuiz()}
     >
         {quiz.imageUrl && (
             <img src={quiz.imageUrl} alt={quiz.title} className="w-full h-40 object-cover" />

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Vote, VoteKind, VoteOption } from '../types';
 import { Card } from './ui/Card';
 import MatchVote from './MatchVote';
@@ -10,17 +11,35 @@ import PlayerRatingResults from './PlayerRatingResults';
 import { TrophyIcon } from './icons/TrophyIcon';
 
 interface VotePageProps {
-  vote: Vote;
+  votes?: Vote[];
+  ratings?: Vote[];
   onVote: (voteId: string, optionId: number) => void;
   onRatePlayers: (voteId: string, ratings: { [playerId: number]: { rating: number; comment: string | null; }; }) => void;
 }
 
-const VotePage: React.FC<VotePageProps> = ({ vote, onVote, onRatePlayers }) => {
+const VotePage: React.FC<VotePageProps> = ({ votes, ratings, onVote, onRatePlayers }) => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+
+  const dataSet = votes || ratings;
+  const vote = dataSet?.find(v => v.id === id);
+
+  useEffect(() => {
+    if (!vote && dataSet) {
+      // 데이터가 로드되었지만 일치하는 투표가 없으면 홈으로 이동
+      navigate('/', { replace: true });
+    }
+  }, [vote, dataSet, navigate]);
+
+  if (!vote) {
+    return null; // 또는 로딩 표시기
+  }
+
   const hasVoted = vote.userVote !== undefined || vote.userRatings !== undefined;
   const isExpired = new Date(vote.endDate) < new Date();
   
-  // For RATING type, show results only after user has rated. The poll being "expired" is the norm.
-  // For other types, show results if voted or expired.
+  // RATING 유형의 경우 사용자가 평가한 후에만 결과를 표시. "만료됨" 상태가 일반적임.
+  // 다른 유형의 경우 투표했거나 만료된 경우 결과를 표시.
   const showResults = vote.type === VoteKind.RATING ? hasVoted : (hasVoted || isExpired);
 
   const totalVotes = vote.options.reduce((sum, option) => sum + option.votes, 0);

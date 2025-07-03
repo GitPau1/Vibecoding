@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Vote, VoteKind, Player } from '../types';
 import { VoteCreationData } from '../App';
 import { Card } from './ui/Card';
@@ -11,10 +12,10 @@ import { useToast } from '../contexts/ToastContext';
 
 interface CreateVotePageProps {
   onCreateVote: (voteData: VoteCreationData) => void;
-  onCancel: () => void;
 }
 
-const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote, onCancel }) => {
+const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote }) => {
+  const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState<VoteKind>(VoteKind.TOPIC);
@@ -246,7 +247,7 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote, onCancel 
         </div>
 
         <div className="flex justify-end gap-4 pt-4 border-t">
-          <Button type="button" variant="outline" onClick={onCancel}>취소</Button>
+          <Button type="button" variant="outline" onClick={() => navigate(-1)}>취소</Button>
           <Button type="submit">투표 생성하기</Button>
         </div>
       </form>

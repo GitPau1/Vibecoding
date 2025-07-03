@@ -1,11 +1,10 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from './ui/Card';
 
-interface CreateHubPageProps {
-  onNavigate: (view: { page: 'createVote' | 'createQuiz' | 'createRating' }) => void;
-}
+const CreateHubPage: React.FC = () => {
+  const navigate = useNavigate();
 
-const CreateHubPage: React.FC<CreateHubPageProps> = ({ onNavigate }) => {
   return (
     <div>
       <div className="text-center mb-8">
@@ -15,7 +14,7 @@ const CreateHubPage: React.FC<CreateHubPageProps> = ({ onNavigate }) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
         <Card 
           className="p-8 text-center cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col items-center justify-center"
-          onClick={() => onNavigate({ page: 'createVote' })}
+          onClick={() => navigate('/create/vote')}
         >
           <div className="text-5xl mb-4">🗳️</div>
           <h3 className="text-xl font-bold text-gray-900">투표 만들기</h3>
@@ -23,7 +22,7 @@ const CreateHubPage: React.FC<CreateHubPageProps> = ({ onNavigate }) => {
         </Card>
         <Card 
           className="p-8 text-center cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col items-center justify-center"
-          onClick={() => onNavigate({ page: 'createRating' })}
+          onClick={() => navigate('/create/rating')}
         >
           <div className="text-5xl mb-4">⭐</div>
           <h3 className="text-xl font-bold text-gray-900">선수 평점 만들기</h3>
@@ -31,7 +30,7 @@ const CreateHubPage: React.FC<CreateHubPageProps> = ({ onNavigate }) => {
         </Card>
         <Card 
           className="p-8 text-center cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col items-center justify-center"
-          onClick={() => onNavigate({ page: 'createQuiz' })}
+          onClick={() => navigate('/create/quiz')}
         >
           <div className="text-5xl mb-4">❓</div>
           <h3 className="text-xl font-bold text-gray-900">퀴즈 만들기</h3>

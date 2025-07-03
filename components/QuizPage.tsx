@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Quiz } from '../types';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -7,13 +8,29 @@ import { XIcon } from './icons/XIcon';
 import { TrophyIcon } from './icons/TrophyIcon';
 
 interface QuizPageProps {
-  quiz: Quiz;
+  quizzes: Quiz[];
 }
 
-const QuizPage: React.FC<QuizPageProps> = ({ quiz }) => {
+const QuizPage: React.FC<QuizPageProps> = ({ quizzes }) => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const quiz = quizzes.find(q => q.id === id);
+  
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [userAnswers, setUserAnswers] = useState<(number | null)[]>(Array(quiz.questions.length).fill(null));
+  const [userAnswers, setUserAnswers] = useState<(number | null)[]>([]);
   const [isFinished, setIsFinished] = useState(false);
+
+  useEffect(() => {
+    if (!quiz) {
+      navigate('/', { replace: true });
+    } else {
+      setUserAnswers(Array(quiz.questions.length).fill(null));
+    }
+  }, [quiz, navigate]);
+
+  if (!quiz) {
+    return null; // 또는 로딩 표시기
+  }
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
   const totalQuestions = quiz.questions.length;

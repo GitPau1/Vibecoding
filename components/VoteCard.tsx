@@ -1,14 +1,15 @@
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Vote, VoteKind } from '../types';
 import { Card } from './ui/Card';
 
 interface VoteCardProps {
   vote: Vote;
-  onSelectVote: (voteId: string) => void;
 }
 
-const VoteCard: React.FC<VoteCardProps> = ({ vote, onSelectVote }) => {
+const VoteCard: React.FC<VoteCardProps> = ({ vote }) => {
+  const navigate = useNavigate();
   const endDate = new Date(vote.endDate);
   const now = new Date();
   const isExpired = endDate < now;
@@ -29,11 +30,18 @@ const VoteCard: React.FC<VoteCardProps> = ({ vote, onSelectVote }) => {
     return vote.type === VoteKind.RATING ? '평점 매기기 →' : '투표 하기 →';
   };
 
+  const handleSelectVote = () => {
+    const path = vote.type === VoteKind.RATING ? `/rating/${vote.id}` : `/vote/${vote.id}`;
+    navigate(path);
+  }
 
   return (
     <Card 
         className="flex flex-col h-full hover:shadow-lg transition-shadow duration-300 cursor-pointer overflow-hidden"
-        onClick={() => onSelectVote(vote.id)}
+        onClick={handleSelectVote}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleSelectVote()}
     >
         {vote.imageUrl && (
             <img src={vote.imageUrl} alt={vote.title} className="w-full h-40 object-cover" />
