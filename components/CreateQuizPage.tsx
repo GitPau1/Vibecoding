@@ -1,46 +1,35 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Quiz, NewQuizQuestion } from '../types';
+import { NewQuizQuestion } from '../types';
 import { Card } from './ui/Card';
 import { Input } from './ui/Input';
 import { Button } from './ui/Button';
 import { PlusIcon } from './icons/PlusIcon';
 import { useToast } from '../contexts/ToastContext';
+import { supabase } from '../supabaseClient';
 
-interface CreateQuizPageProps {
-  onCreateQuiz: (quizData: Omit<Quiz, 'id' | 'questions'> & { questions: NewQuizQuestion[] }) => void;
-}
-
-const CreateQuizPage: React.FC<CreateQuizPageProps> = ({ onCreateQuiz }) => {
+const CreateQuizPage: React.FC = () => {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
   const [questions, setQuestions] = useState<NewQuizQuestion[]>([
-    { text: '', options: [{ text: '' }, { text: '' }], correctOptionId: 1 }
+    { text: '', options: [{ text: '' }, { text: '' }], correctOptionId: 1, imageUrl: '' }
   ]);
   const { addToast } = useToast();
 
   const handleQuestionChange = (qIndex: number, field: 'text' | 'imageUrl', value: string) => {
-    const newQuestions = questions.map((q, i) => {
-      if (i === qIndex) {
-        return { ...q, [field]: value };
-      }
-      return q;
-    });
+    const newQuestions = questions.map((q, i) => (i === qIndex ? { ...q, [field]: value } : q));
     setQuestions(newQuestions);
   };
 
   const handleOptionChange = (qIndex: number, oIndex: number, value: string) => {
     const newQuestions = questions.map((question, cqIndex) => {
       if (qIndex === cqIndex) {
-        const newOptions = question.options.map((option, coIndex) => {
-          if (oIndex === coIndex) {
-            return { ...option, text: value };
-          }
-          return option;
-        });
+        const newOptions = question.options.map((option, coIndex) => 
+          (oIndex === coIndex ? { ...option, text: value } : option)
+        );
         return { ...question, options: newOptions };
       }
       return question;
@@ -65,20 +54,17 @@ const CreateQuizPage: React.FC<CreateQuizPageProps> = ({ onCreateQuiz }) => {
     if (questions[qIndex].options.length <= 2) return;
     const newQuestions = [...questions];
     newQuestions[qIndex].options.splice(oIndex, 1);
-    
-    // Adjust correctOptionId if the removed option was the correct one or before it
     if (newQuestions[qIndex].correctOptionId === oIndex + 1) {
-        newQuestions[qIndex].correctOptionId = 1; // Default to first
+        newQuestions[qIndex].correctOptionId = 1;
     } else if (newQuestions[qIndex].correctOptionId > oIndex + 1) {
         newQuestions[qIndex].correctOptionId -= 1;
     }
-
     setQuestions(newQuestions);
   };
 
   const addQuestion = () => {
     if (questions.length >= 20) return;
-    setQuestions([...questions, { text: '', options: [{ text: '' }, { text: '' }], correctOptionId: 1 }]);
+    setQuestions([...questions, { text: '', options: [{ text: '' }, { text: '' }], correctOptionId: 1, imageUrl: '' }]);
   };
 
   const removeQuestion = (qIndex: number) => {
@@ -86,26 +72,43 @@ const CreateQuizPage: React.FC<CreateQuizPageProps> = ({ onCreateQuiz }) => {
     setQuestions(questions.filter((_, index) => index !== qIndex));
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if(title.trim() === '') {
         addToast('퀴즈 제목을 입력해주세요.', 'error');
         return;
     }
 
-    const validQuestions = questions.filter(q => 
-        q.text.trim() !== '' &&
-        q.options.length >= 2 &&
-        q.options.every(o => o.text.trim() !== '') &&
-        q.correctOptionId > 0 && q.correctOptionId <= q.options.length
-    );
+    const validQuestions = questions
+      .filter(q => q.text.trim() !== '' && q.options.every(o => o.text.trim() !== ''))
+      .map((q, qIndex) => ({
+        id: qIndex + 1,
+        text: q.text.trim(),
+        imageUrl: q.imageUrl?.trim() || undefined,
+        options: q.options.map((o, oIndex) => ({ id: oIndex + 1, text: o.text.trim() })),
+        correctOptionId: q.correctOptionId
+      }));
     
     if(validQuestions.length < 1) {
         addToast('하나 이상의 완전한 질문을 입력해주세요. (질문, 2개 이상의 선택지, 정답 선택 포함)', 'error');
         return;
     }
-    
-    onCreateQuiz({ title: title.trim(), description: description.trim(), imageUrl, questions: validQuestions });
+
+    const quizToInsert = {
+      title: title.trim(),
+      description: description.trim() || null,
+      imageUrl: imageUrl || null,
+      questions: validQuestions
+    };
+
+    const { error } = await supabase.from('quizzes').insert(quizToInsert);
+
+    if (error) {
+        addToast(`퀴즈 생성 실패: ${error.message}`, 'error');
+    } else {
+        addToast('퀴즈가 성공적으로 생성되었습니다.', 'success');
+        navigate('/');
+    }
   };
 
   return (

@@ -2,29 +2,22 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { VoteKind, Player } from '../types';
-import { VoteCreationData } from '../App';
 import { Card } from './ui/Card';
 import { Input } from './ui/Input';
 import { Button } from './ui/Button';
 import { PlusIcon } from './icons/PlusIcon';
 import { useToast } from '../contexts/ToastContext';
+import { supabase } from '../supabaseClient';
 
-interface CreateRatingPageProps {
-  onCreateRating: (voteData: VoteCreationData) => void;
-}
-
-const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating }) => {
+const CreateRatingPage: React.FC = () => {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [endDate, setEndDate] = useState(new Date().toISOString().split("T")[0]); // Default to today
+  const [endDate, setEndDate] = useState(new Date().toISOString().split("T")[0]);
   const { addToast } = useToast();
   
   const [starters, setStarters] = useState<{ name: string; team: string; photoUrl: string }[]>([
-    { name: '', team: '', photoUrl: '' }, { name: '', team: '', photoUrl: '' }, { name: '', team: '', photoUrl: '' },
-    { name: '', team: '', photoUrl: '' }, { name: '', team: '', photoUrl: '' }, { name: '', team: '', photoUrl: '' },
-    { name: '', team: '', photoUrl: '' }, { name: '', team: '', photoUrl: '' }, { name: '', team: '', photoUrl: '' },
-    { name: '', team: '', photoUrl: '' }, { name: '', team: '', photoUrl: '' },
+    ...Array(11).fill({ name: '', team: '', photoUrl: '' })
   ]);
   const [substitutes, setSubstitutes] = useState<{ name: string; team: string; photoUrl: string }[]>([]);
 
@@ -32,12 +25,7 @@ const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating }) =
     list: typeof starters, setter: React.Dispatch<React.SetStateAction<typeof starters>>,
     index: number, field: 'name' | 'team' | 'photoUrl', value: string
   ) => {
-    const newList = list.map((player, i) => {
-        if (i === index) {
-            return { ...player, [field]: value };
-        }
-        return player;
-    });
+    const newList = list.map((player, i) => (i === index ? { ...player, [field]: value } : player));
     setter(newList);
   };
 
@@ -55,7 +43,7 @@ const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating }) =
   };
 
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const validStarters = starters.filter(p => p.name.trim() !== '');
@@ -78,15 +66,30 @@ const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating }) =
         photoUrl: p.photoUrl.trim() || `https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(p.name.trim())}`,
         isStarter: p.isStarter
     }));
+
+    const ratingToInsert = {
+      title: title.trim(),
+      description: description.trim() || null,
+      type: VoteKind.RATING,
+      endDate: new Date(endDate).toISOString(),
+      players: votePlayers,
+      options: votePlayers.map(p => ({
+        id: p.id,
+        label: p.name,
+        votes: 0,
+        ratingCount: 0,
+        comments: [] as string[],
+      }))
+    };
     
-    onCreateRating({ 
-        title: title.trim(), 
-        description: description.trim(), 
-        type: VoteKind.RATING, 
-        endDate, 
-        players: votePlayers,
-        options: [] // Options are generated from players in the handler
-    });
+    const { error } = await supabase.from('votes').insert(ratingToInsert);
+
+    if (error) {
+        addToast(`평점 생성 실패: ${error.message}`, 'error');
+    } else {
+        addToast('선수 평점이 성공적으로 생성되었습니다.', 'success');
+        navigate('/');
+    }
   };
 
   const PlayerInputs: React.FC<{

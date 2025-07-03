@@ -6,30 +6,53 @@ import { Button } from './ui/Button';
 import { CheckCircleIcon } from './icons/CheckCircleIcon';
 import { XIcon } from './icons/XIcon';
 import { TrophyIcon } from './icons/TrophyIcon';
+import { supabase } from '../supabaseClient';
+import { useToast } from '../contexts/ToastContext';
 
-interface QuizPageProps {
-  quizzes: Quiz[];
-}
-
-const QuizPage: React.FC<QuizPageProps> = ({ quizzes }) => {
+const QuizPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const quiz = quizzes.find(q => q.id === id);
+  const { addToast } = useToast();
+  const [quiz, setQuiz] = useState<Quiz | null>(null);
+  const [loading, setLoading] = useState(true);
   
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<(number | null)[]>([]);
   const [isFinished, setIsFinished] = useState(false);
 
   useEffect(() => {
-    if (!quiz) {
-      navigate('/', { replace: true });
-    } else {
-      setUserAnswers(Array(quiz.questions.length).fill(null));
+    if (!id) {
+      navigate('/');
+      return;
     }
-  }, [quiz, navigate]);
+    const fetchQuiz = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('quizzes')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error || !data) {
+        console.error("Error fetching quiz", error);
+        addToast('퀴즈를 불러오지 못했습니다.', 'error');
+        navigate('/', { replace: true });
+      } else {
+        setQuiz(data);
+        setUserAnswers(Array(data.questions.length).fill(null));
+      }
+      setLoading(false);
+    };
+
+    fetchQuiz();
+  }, [id, navigate, addToast]);
+
+  if (loading) {
+    return <Card className="p-6 md:p-8 text-center"><p className="text-gray-500">퀴즈를 불러오는 중...</p></Card>;
+  }
 
   if (!quiz) {
-    return null; // 또는 로딩 표시기
+    return null;
   }
 
   const currentQuestion = quiz.questions[currentQuestionIndex];

@@ -22,7 +22,8 @@ export interface Player {
 }
 
 export interface Vote {
-  id:string;
+  id: number;
+  created_at: string;
   title: string;
   type: VoteKind;
   description?: string;
@@ -53,9 +54,20 @@ export type NewQuizQuestion = Omit<QuizQuestion, 'id' | 'options'> & {
 };
 
 export interface Quiz {
-  id: string;
+  id: number;
+  created_at: string;
   title: string;
   description: string;
   imageUrl?: string;
   questions: QuizQuestion[];
+}
+
+export interface VoteCreationData {
+  title: string;
+  description?: string;
+  type: VoteKind;
+  endDate: string;
+  imageUrl?: string;
+  players?: Player[];
+  options: {label: string}[];
 }

@@ -60,7 +60,7 @@ const PlayerRatingInput: React.FC<PlayerRatingInputProps> = ({ player, ratingDat
 
 interface PlayerRatingPageProps {
     vote: Vote;
-    onRate: (voteId: string, ratings: { [playerId: number]: { rating: number; comment: string | null; }; }) => void;
+    onRate: (ratings: { [playerId: number]: { rating: number; comment: string | null; }; }) => void;
 }
 
 const PlayerRatingPage: React.FC<PlayerRatingPageProps> = ({ vote, onRate }) => {
@@ -117,7 +117,7 @@ const PlayerRatingPage: React.FC<PlayerRatingPageProps> = ({ vote, onRate }) => 
             addToast('모든 선수의 평점을 매겨주세요.', 'error');
             return;
         }
-        onRate(vote.id, ratings);
+        onRate(ratings);
     };
 
     return (
