@@ -130,9 +130,21 @@ const VotePage: React.FC = () => {
       console.error('Error submitting rating:', updateError);
     } else {
       addToast('평점이 제출되었습니다. 감사합니다!', 'success');
-      const userAction = { userRatings: playerRatings };
-      setVote({ ...(updatedVoteData as unknown as Vote), ...userAction });
-      localStorage.setItem(`rating-${vote.id}`, JSON.stringify(userAction));
+      const voteFromDb = updatedVoteData as unknown as Vote;
+      const newVote: Vote = {
+        id: voteFromDb.id,
+        created_at: voteFromDb.created_at,
+        title: voteFromDb.title,
+        type: voteFromDb.type as VoteKind,
+        description: voteFromDb.description || undefined,
+        imageUrl: voteFromDb.imageUrl || undefined,
+        options: voteFromDb.options,
+        endDate: voteFromDb.endDate,
+        players: voteFromDb.players || undefined,
+        userRatings: playerRatings,
+      };
+      setVote(newVote);
+      localStorage.setItem(`rating-${vote.id}`, JSON.stringify({ userRatings: playerRatings }));
     }
   }, [vote, addToast]);
 
