@@ -6,6 +6,39 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+// It's better to use specific types for JSON columns to avoid type errors.
+// These types are based on the application's types in `types.ts`.
+
+export interface VoteOptionForDB {
+  id: number;
+  label: string;
+  votes: number;
+  ratingCount?: number;
+  comments?: string[];
+}
+
+export interface PlayerForDB {
+    id: number;
+    name: string;
+    team: string;
+    photoUrl?: string;
+    isStarter?: boolean;
+}
+
+export interface QuizQuestionOptionForDB {
+  id: number;
+  text: string;
+}
+
+export interface QuizQuestionForDB {
+  id: number;
+  text: string;
+  options: QuizQuestionOptionForDB[];
+  correctOptionId: number;
+  imageUrl?: string;
+}
+
+
 export interface Database {
   public: {
     Tables: {
