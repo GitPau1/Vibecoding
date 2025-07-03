@@ -78,7 +78,7 @@ const CreateRatingPage: React.FC = () => {
         label: p.name,
         votes: 0,
         ratingCount: 0,
-        comments: [] as string[],
+        comments: []
       }))
     };
     

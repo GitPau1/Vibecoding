@@ -1,5 +1,3 @@
-import type { Player, QuizQuestion, VoteOption } from "./types";
-
 export type Json =
   | string
   | number
@@ -19,9 +17,9 @@ export interface Database {
           type: string
           description: string | null
           imageUrl: string | null
-          options: VoteOption[]
+          options: Json
           endDate: string
-          players: Player[] | null
+          players: Json | null
         }
         Insert: {
           id?: number
@@ -30,9 +28,9 @@ export interface Database {
           type: string
           description?: string | null
           imageUrl?: string | null
-          options: VoteOption[]
+          options: Json
           endDate: string
-          players?: Player[] | null
+          players?: Json | null
         }
         Update: {
           id?: number
@@ -41,9 +39,9 @@ export interface Database {
           type?: string
           description?: string | null
           imageUrl?: string | null
-          options?: VoteOption[]
+          options?: Json
           endDate?: string
-          players?: Player[] | null
+          players?: Json | null
         }
       }
       quizzes: {
@@ -53,7 +51,7 @@ export interface Database {
             title: string
             description: string | null
             imageUrl: string | null
-            questions: QuizQuestion[]
+            questions: Json
         }
         Insert: {
             id?: number
@@ -61,7 +59,7 @@ export interface Database {
             title: string
             description?: string | null
             imageUrl?: string | null
-            questions: QuizQuestion[]
+            questions: Json
         }
         Update: {
             id?: number
@@ -69,7 +67,7 @@ export interface Database {
             title?: string
             description?: string | null
             imageUrl?: string | null
-            questions?: QuizQuestion[]
+            questions?: Json
         }
       }
     }
