@@ -1,5 +1,6 @@
 
 import { createClient } from '@supabase/supabase-js';
+import { Player } from '../types';
 
 export type Json =
   | string
@@ -12,6 +13,32 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      bug_reports: {
+        Row: {
+          id: string
+          created_at: string
+          title: string
+          description: string
+          url: string
+          screenshot_url: string | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          title: string
+          description: string
+          url: string
+          screenshot_url?: string | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          title?: string
+          description?: string
+          url?: string
+          screenshot_url?: string | null
+        }
+      }
       quizzes: {
         Row: {
           created_at: string
@@ -268,6 +295,20 @@ ALTER TABLE quiz_question_options ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow public read access on quiz_question_options" ON quiz_question_options FOR SELECT USING (true);
 
 
+-- BUG REPORTS TABLE
+CREATE TABLE bug_reports (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  title text NOT NULL,
+  description text NOT NULL,
+  url text NOT NULL,
+  screenshot_url text
+);
+ALTER TABLE bug_reports ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow anon insert on bug_reports" ON bug_reports FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public read access on bug_reports" ON bug_reports FOR SELECT USING (true);
+
+
 -- 2. Create RPC function to increment votes atomically
 -- This prevents race conditions where two users vote at the same time.
 CREATE OR REPLACE FUNCTION increment_vote(option_id_to_inc uuid)
@@ -281,5 +322,15 @@ BEGIN
   WHERE id = option_id_to_inc;
 END;
 $$;
+
+
+-- 3. Create Storage Bucket for Bug Reports
+-- Go to Storage -> Buckets -> Create Bucket
+-- Name it 'bug_screenshots' and make it a Public bucket.
+-- Define policies for upload access. For an anonymous app, you might allow all inserts:
+-- (Go to Storage -> Policies -> bug_screenshots -> New Policy -> For INSERT)
+-- CREATE POLICY "Allow anon uploads" ON storage.objects
+-- FOR INSERT TO public
+-- WITH CHECK (bucket_id = 'bug_screenshots');
 
 */

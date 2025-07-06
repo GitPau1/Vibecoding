@@ -9,6 +9,28 @@ import { Button } from './ui/Button';
 import { PlusIcon } from './icons/PlusIcon';
 import { useToast } from '../contexts/ToastContext';
 
+interface PlayerInputsProps {
+    playerList: { name: string; team: string; photoUrl: string }[];
+    onPlayerChange: (index: number, field: 'name' | 'team' | 'photoUrl', value: string) => void;
+    onRemovePlayer: (index: number) => void;
+    minPlayers: number;
+}
+
+const PlayerInputs: React.FC<PlayerInputsProps> = ({ playerList, onPlayerChange, onRemovePlayer, minPlayers }) => (
+    <>
+        {playerList.map((player, index) => (
+            <div key={index} className="p-4 border rounded-lg bg-gray-50/50 space-y-3 relative group">
+                {playerList.length > minPlayers && (
+                    <button type="button" onClick={() => onRemovePlayer(index)} className="absolute top-2 right-2 text-gray-400 hover:text-red-500 font-bold w-6 h-6 rounded-full flex items-center justify-center bg-white border border-transparent hover:border-red-300 transition-all opacity-0 group-hover:opacity-100">&times;</button>
+                )}
+                <Input placeholder="선수 이름" value={player.name} onChange={e => onPlayerChange(index, 'name', e.target.value)} required />
+                <Input placeholder="소속 팀 (선택)" value={player.team} onChange={e => onPlayerChange(index, 'team', e.target.value)} />
+                <Input placeholder="선수 사진 URL (선택)" value={player.photoUrl} onChange={e => onPlayerChange(index, 'photoUrl', e.target.value)} />
+            </div>
+        ))}
+    </>
+);
+
 interface CreateRatingPageProps {
   onCreateRating: (voteData: VoteCreationData) => void;
 }
@@ -88,26 +110,6 @@ const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating }) =
         options: [] // Options are generated from players in the handler
     });
   };
-
-  const PlayerInputs: React.FC<{
-    playerList: typeof starters,
-    onPlayerChange: (index: number, field: 'name' | 'team' | 'photoUrl', value: string) => void,
-    onRemovePlayer: (index: number) => void,
-    minPlayers: number
-  }> = ({ playerList, onPlayerChange, onRemovePlayer, minPlayers }) => (
-    <>
-        {playerList.map((player, index) => (
-          <div key={index} className="p-4 border rounded-lg bg-gray-50/50 space-y-3 relative group">
-              {playerList.length > minPlayers && (
-              <button type="button" onClick={() => onRemovePlayer(index)} className="absolute top-2 right-2 text-gray-400 hover:text-red-500 font-bold w-6 h-6 rounded-full flex items-center justify-center bg-white border border-transparent hover:border-red-300 transition-all opacity-0 group-hover:opacity-100">&times;</button>
-            )}
-            <Input placeholder="선수 이름" value={player.name} onChange={e => onPlayerChange(index, 'name', e.target.value)} required />
-            <Input placeholder="소속 팀 (선택)" value={player.team} onChange={e => onPlayerChange(index, 'team', e.target.value)} />
-            <Input placeholder="선수 사진 URL (선택)" value={player.photoUrl} onChange={e => onPlayerChange(index, 'photoUrl', e.target.value)} />
-          </div>
-        ))}
-    </>
-  );
 
   return (
     <Card className="p-6 md:p-8">

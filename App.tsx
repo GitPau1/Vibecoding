@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Vote, Quiz, NewQuizQuestion, VoteKind, Player, VoteOption } from './types';
@@ -14,37 +12,13 @@ import CreateRatingPage from './components/CreateRatingPage';
 import QuizPage from './components/QuizPage';
 import { ToastProvider, useToast } from './contexts/ToastContext';
 import { supabase } from './lib/supabaseClient';
+import { MOCK_VOTES, MOCK_RATINGS, MOCK_QUIZZES } from './constants';
+import { BugIcon } from './components/icons/BugIcon';
+import BugReportPage from './components/BugReportPage';
 
 export interface VoteCreationData extends Pick<Vote, 'title' | 'description' | 'type' | 'endDate' | 'imageUrl' | 'players'> {
   options: {label: string}[];
 }
-
-const SupabaseErrorComponent: React.FC = () => (
-   <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-    <div className="text-center p-8 bg-white shadow-lg rounded-xl max-w-lg border-t-4 border-red-500">
-      <h2 className="text-2xl font-bold text-red-600 mb-4">Supabase 설정 오류</h2>
-      <p className="text-gray-700 mb-4">
-        Supabase 클라이언트를 초기화할 수 없습니다. Vercel 또는 로컬 환경에 환경 변수가 올바르게 설정되었는지 확인하세요.
-      </p>
-      <p className="text-gray-600 text-left">
-        이 프로젝트는 Vite를 사용하므로 환경 변수는 <code>VITE_</code> 접두사를 사용해야 합니다. 프로젝트 루트에 <code>.env</code> 파일을 생성하고 다음 내용을 추가하세요:
-      </p>
-      <pre className="my-4 p-4 bg-gray-100 rounded-md text-left text-sm text-gray-800 overflow-x-auto">
-        <code>
-          VITE_SUPABASE_URL=YOUR_SUPABASE_URL<br />
-          VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
-        </code>
-      </pre>
-      <p className="text-sm text-gray-500 text-left">
-        <code>YOUR_SUPABASE_URL</code>과 <code>YOUR_SUPABASE_ANON_KEY</code>를 Supabase 프로젝트의 값으로 교체해주세요. <strong>Vercel에 배포할 때는 Vercel 프로젝트 설정의 환경 변수에도 동일하게 <code>VITE_</code> 접두사를 사용하여 이 변수들을 추가해야 합니다.</strong>
-      </p>
-      <p className="text-sm text-gray-500 text-left mt-2">
-         환경 변수를 설정한 후에는 로컬 서버를 다시 시작하거나 Vercel 배포를 다시 트리거해야 합니다.
-      </p>
-    </div>
-  </div>
-);
-
 
 const AppContent: React.FC = () => {
   const [votes, setVotes] = useState<Vote[]>([]);
@@ -54,13 +28,14 @@ const AppContent: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { addToast } = useToast();
+  
+  const isLocalMode = supabase === null;
 
   const fetchAllData = useCallback(async () => {
-    // supabase is guaranteed non-null here
+    if (isLocalMode) return;
     try {
       setLoading(true);
       
-      // Fetch votes and ratings
       const { data: voteData, error: voteError } = await supabase!
         .from('votes')
         .select(`
@@ -81,13 +56,13 @@ const AppContent: React.FC = () => {
         type: v.type,
         endDate: v.end_date,
         imageUrl: v.image_url,
-        players: v.players,
+        players: v.players as Player[] | null,
         options: v.options.map((o: any) => ({
           id: o.id,
           label: o.label,
           votes: o.votes,
           ratingCount: o.rating_count,
-          comments: o.comments,
+          comments: o.comments as string[] | undefined,
         })),
         userVote: userVotes[v.id],
         userRatings: userRatings[v.id],
@@ -96,7 +71,6 @@ const AppContent: React.FC = () => {
       setVotes(allVotes.filter(v => v.type !== VoteKind.RATING));
       setRatings(allVotes.filter(v => v.type === VoteKind.RATING));
 
-      // Fetch quizzes (example of nested fetching)
       const { data: quizData, error: quizError } = await supabase!
         .from('quizzes')
         .select(`*, questions:quiz_questions(*, options:quiz_question_options(*))`)
@@ -104,7 +78,6 @@ const AppContent: React.FC = () => {
 
       if (quizError) throw quizError;
       
-      // Map Supabase response to application types
       const formattedQuizzes: Quiz[] = quizData.map((q: any) => ({
         id: q.id,
         title: q.title,
@@ -125,90 +98,151 @@ const AppContent: React.FC = () => {
 
     } catch (error: any) {
       console.error('Error fetching data:', error);
-      addToast(`Error fetching data: ${error.message}`, 'error');
+      addToast(`데이터 로딩 오류: ${error.message}`, 'error');
     } finally {
       setLoading(false);
     }
-  }, [addToast]);
+  }, [addToast, isLocalMode]);
   
   useEffect(() => {
-    fetchAllData();
     window.scrollTo(0, 0);
-  }, [location.pathname, fetchAllData]);
+    if (isLocalMode) {
+      setLoading(true);
+      // Deep copy to prevent mutation of constant data
+      const userVotes = JSON.parse(localStorage.getItem('userVotes') || '{}');
+      const userRatings = JSON.parse(localStorage.getItem('userRatings') || '{}');
+
+      setVotes(JSON.parse(JSON.stringify(MOCK_VOTES)).map((v: Vote) => ({ ...v, userVote: userVotes[v.id] })));
+      setRatings(JSON.parse(JSON.stringify(MOCK_RATINGS)).map((r: Vote) => ({ ...r, userRatings: userRatings[r.id] })));
+      setQuizzes(JSON.parse(JSON.stringify(MOCK_QUIZZES)));
+      setLoading(false);
+    } else {
+      fetchAllData();
+    }
+  }, [isLocalMode, location.pathname, fetchAllData]);
+
+  useEffect(() => {
+    if (isLocalMode) {
+      addToast('Supabase 연결 실패. 로컬 모드로 실행됩니다.', 'info');
+    }
+  }, [isLocalMode, addToast]);
 
   const handleVote = useCallback(async (voteId: string, optionId: string) => {
     const vote = votes.find(v => v.id === voteId);
     if (!vote) return;
-    
     const option = vote.options.find(o => o.id === optionId);
     if (!option) return;
 
-    // 1. Call Supabase RPC to increment vote count
+    const updateLocalState = () => {
+      setVotes(prevVotes =>
+        prevVotes.map(v => {
+          if (v.id === voteId) {
+            const newOptions = v.options.map(o =>
+              o.id === optionId ? { ...o, votes: o.votes + 1 } : o
+            );
+            return { ...v, options: newOptions, userVote: optionId };
+          }
+          return v;
+        })
+      );
+      const userVotes = JSON.parse(localStorage.getItem('userVotes') || '{}');
+      userVotes[voteId] = optionId;
+      localStorage.setItem('userVotes', JSON.stringify(userVotes));
+    };
+
+    if (isLocalMode) {
+      updateLocalState();
+      return;
+    }
+
     const { error } = await supabase!.rpc('increment_vote', { option_id_to_inc: option.id });
-    
     if (error) {
-        addToast(`투표 처리 중 오류가 발생했습니다: ${error.message}`, 'error');
+      addToast(`투표 처리 중 오류가 발생했습니다: ${error.message}`, 'error');
+      return;
+    }
+    updateLocalState();
+  }, [votes, addToast, isLocalMode]);
+  
+  const handlePlayerRatingSubmit = useCallback(async (ratingId: string, playerRatings: { [playerId: number]: { rating: number; comment: string | null; }; }) => {
+    const updateLocalState = () => {
+        setRatings(prevRatings =>
+            prevRatings.map(rating => {
+                if (rating.id === ratingId) {
+                    const newOptions = rating.options.map(option => {
+                        const playerRatingData = playerRatings[Number(option.id)];
+                        if (playerRatingData) {
+                            return {
+                                ...option,
+                                votes: option.votes + playerRatingData.rating,
+                                ratingCount: (option.ratingCount || 0) + 1,
+                                comments: playerRatingData.comment
+                                    ? [...(option.comments || []), playerRatingData.comment]
+                                    : (option.comments || []),
+                            };
+                        }
+                        return option;
+                    });
+                    const userRatings = JSON.parse(localStorage.getItem('userRatings') || '{}');
+                    userRatings[ratingId] = playerRatings;
+                    localStorage.setItem('userRatings', JSON.stringify(userRatings));
+                    return { ...rating, options: newOptions, userRatings: playerRatings };
+                }
+                return rating;
+            })
+        );
+        addToast('평점이 제출되었습니다. 감사합니다!', 'success');
+    };
+
+    if (isLocalMode) {
+      updateLocalState();
+      return;
+    }
+    
+    // Supabase logic
+    try {
+        const rating = ratings.find(r => r.id === ratingId);
+        if (!rating) throw new Error("Rating not found");
+
+        const updates = Object.entries(playerRatings).map(([playerId, data]) => {
+            const option = rating.options.find(o => o.id === playerId);
+            if (!option) return null;
+            const newComments = data.comment ? [...(option.comments || []), data.comment] : (option.comments || []);
+
+            return supabase!.from('vote_options').update({
+                votes: option.votes + data.rating,
+                rating_count: (option.ratingCount || 0) + 1,
+                comments: newComments
+            }).eq('id', option.id);
+        }).filter(Boolean);
+
+        const results = await Promise.all(updates);
+        const dbError = results.find(res => res && res.error);
+        if (dbError && dbError.error) throw dbError.error;
+
+        updateLocalState();
+    } catch (error: any) {
+        addToast(`평점 제출 실패: ${error.message}`, 'error');
+    }
+  }, [addToast, ratings, isLocalMode]);
+
+  const handleCreateVote = useCallback(async (newVoteData: VoteCreationData) => {
+    if (isLocalMode) {
+        const voteToAdd: Vote = {
+            ...newVoteData,
+            id: `mock-vote-${Date.now()}`,
+            options: newVoteData.options.map((o, i) => ({
+                id: `mock-opt-${Date.now()}-${i}`,
+                label: o.label,
+                votes: 0,
+            })),
+        };
+        setVotes(prev => [voteToAdd, ...prev]);
+        navigate('/');
+        addToast('투표가 성공적으로 생성되었습니다 (로컬).', 'success');
         return;
     }
 
-    // 2. Update local state for immediate UI feedback
-    setVotes(prevVotes =>
-      prevVotes.map(v => {
-        if (v.id === voteId) {
-          const newOptions = v.options.map(o =>
-            o.id === optionId ? { ...o, votes: o.votes + 1 } : o
-          );
-          return { ...v, options: newOptions, userVote: optionId };
-        }
-        return v;
-      })
-    );
-
-    // 3. Persist user's vote in localStorage
-    const userVotes = JSON.parse(localStorage.getItem('userVotes') || '{}');
-    userVotes[voteId] = optionId;
-    localStorage.setItem('userVotes', JSON.stringify(userVotes));
-  }, [votes, addToast]);
-  
-  const handlePlayerRatingSubmit = useCallback((ratingId: string, playerRatings: { [playerId: number]: { rating: number; comment: string | null; }; }) => {
-    // This is a local-only implementation for now.
-    // TODO: To implement with Supabase, you would need an RPC function or a series of updates:
-    // 1. For each player in playerRatings:
-    //    a. Find the corresponding vote_option.
-    //    b. Update its 'votes' (total rating points) and 'rating_count'.
-    //    c. Append the new comment to the 'comments' JSONB array.
-    // 2. Persist the user's rating in localStorage.
-    setRatings(prevRatings =>
-      prevRatings.map(rating => {
-        if (rating.id === ratingId) {
-          const newOptions = rating.options.map(option => {
-            const playerRatingData = playerRatings[option.id as any]; // player.id is number, option.id is string from db. Local-only logic has mismatch.
-            if (playerRatingData) {
-              return {
-                ...option,
-                votes: option.votes + playerRatingData.rating,
-                ratingCount: (option.ratingCount || 0) + 1,
-                comments: playerRatingData.comment
-                  ? [...(option.comments || []), playerRatingData.comment]
-                  : (option.comments || []),
-              };
-            }
-            return option;
-          });
-          const userRatings = JSON.parse(localStorage.getItem('userRatings') || '{}');
-          userRatings[ratingId] = playerRatings;
-          localStorage.setItem('userRatings', JSON.stringify(userRatings));
-          return { ...rating, options: newOptions, userRatings: playerRatings };
-        }
-        return rating;
-      })
-    );
-    addToast('평점이 제출되었습니다. 감사합니다!', 'success');
-  }, [addToast]);
-
-  const handleCreateVote = useCallback(async (newVoteData: VoteCreationData) => {
     try {
-        // 1. Insert into 'votes' table
         const { data: vote, error: voteError } = await supabase!
             .from('votes')
             .insert({
@@ -218,82 +252,183 @@ const AppContent: React.FC = () => {
                 end_date: newVoteData.endDate,
                 image_url: newVoteData.imageUrl ?? null,
                 players: newVoteData.players ?? null,
-            } as any)
-            .select()
-            .single();
+            }).select().single();
 
         if (voteError) throw voteError;
-        if (!vote) {
-            throw new Error("Vote creation failed, no data returned.");
-        }
+        if (!vote) throw new Error("Vote creation failed, no data returned.");
 
-        // 2. Insert into 'vote_options' table
         const optionsToInsert = newVoteData.options.map((opt) => ({
             vote_id: vote.id,
             label: opt.label,
         }));
         
-        const { error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert as any);
+        const { error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert);
         if (optionsError) throw optionsError;
 
         addToast('투표가 성공적으로 생성되었습니다.', 'success');
-        await fetchAllData(); // Refresh data
+        await fetchAllData();
         navigate('/');
-
     } catch (error: any) {
-        console.error("Error creating vote:", error);
         addToast(`투표 생성 실패: ${error.message}`, 'error');
     }
-  }, [navigate, addToast, fetchAllData]);
+  }, [navigate, addToast, fetchAllData, isLocalMode]);
 
-  const handleCreateRating = useCallback((newRatingData: VoteCreationData) => {
-    // This is a local-only implementation for now.
-    // TODO: Implement with Supabase (similar to handleCreateVote, but with type=RATING and players in JSONB)
-    const ratingToAdd: Vote = {
-        ...newRatingData,
-        id: String(Date.now()),
-        options: newRatingData.players!.map(p => ({
-            id: String(p.id),
-            label: p.name,
-            votes: 0,
-            ratingCount: 0,
-            comments: [],
-        })),
+  const handleCreateRating = useCallback(async (newRatingData: VoteCreationData) => {
+     const createLocalRating = () => {
+        const ratingToAdd: Vote = {
+            ...newRatingData,
+            id: `mock-rating-${Date.now()}`,
+            options: newRatingData.players!.map(p => ({
+                id: String(p.id),
+                label: p.name,
+                votes: 0,
+                ratingCount: 0,
+                comments: [],
+            })),
+        };
+        setRatings(prevRatings => [ratingToAdd, ...prevRatings]);
+        navigate('/');
+        addToast('선수 평점이 성공적으로 생성되었습니다 (로컬).', 'success');
     };
-    setRatings(prevRatings => [ratingToAdd, ...prevRatings]);
-    navigate('/');
-    addToast('선수 평점이 성공적으로 생성되었습니다.', 'success');
-  }, [navigate, addToast]);
 
+    if (isLocalMode) {
+      createLocalRating();
+      return;
+    }
 
-  const handleCreateQuiz = useCallback((newQuizData: Omit<Quiz, 'id' | 'questions'> & { questions: NewQuizQuestion[] }) => {
-      // This is a local-only implementation for now.
-      // TODO: Implement with Supabase. This requires a chain of inserts:
-      // 1. Insert into 'quizzes' table, get back quiz_id.
-      // 2. For each question, insert into 'quiz_questions' with quiz_id, get back question_id.
-      // 3. For each option, insert into 'quiz_question_options' with question_id.
-      // 4. Update 'quiz_questions' with the correct option ID.
-      const newQuiz: Quiz = {
-          ...newQuizData,
-          id: `q${Date.now()}`,
-          questions: newQuizData.questions.map((q, qIndex) => ({
-              ...q,
-              id: String(qIndex + 1),
-              options: q.options.map((o, oIndex) => ({
-                  ...o,
-                  id: String(oIndex + 1),
-              }))
-          }))
+    try {
+        const { data: vote, error: voteError } = await supabase!.from('votes').insert({
+            title: newRatingData.title,
+            description: newRatingData.description ?? null,
+            type: VoteKind.RATING,
+            end_date: newRatingData.endDate,
+            players: newRatingData.players ?? null,
+        }).select().single();
+
+        if (voteError) throw voteError;
+        if (!vote) throw new Error("Rating creation failed");
+
+        const optionsToInsert = newRatingData.players!.map(p => ({
+            vote_id: vote.id,
+            label: p.name,
+            id: String(p.id) // Use player ID for option ID in ratings
+        }));
+        
+        const { error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert);
+        if (optionsError) throw optionsError;
+
+        addToast('선수 평점이 성공적으로 생성되었습니다.', 'success');
+        await fetchAllData();
+        navigate('/');
+    } catch (error: any) {
+        addToast(`평점 생성 실패: ${error.message}`, 'error');
+    }
+  }, [navigate, addToast, fetchAllData, isLocalMode]);
+
+  const handleCreateQuiz = useCallback(async (newQuizData: Omit<Quiz, 'id' | 'questions'> & { questions: NewQuizQuestion[] }) => {
+      const createLocalQuiz = () => {
+        const newQuiz: Quiz = {
+            ...newQuizData,
+            id: `mock-q-${Date.now()}`,
+            questions: newQuizData.questions.map((q, qIndex) => ({
+                ...q,
+                id: `mock-q-q${qIndex + 1}`,
+                options: q.options.map((o, oIndex) => ({
+                    ...o,
+                    id: `mock-q-o${oIndex + 1}`,
+                }))
+            }))
+        };
+        setQuizzes(prevQuizzes => [newQuiz, ...prevQuizzes]);
+        navigate('/');
+        addToast('퀴즈가 성공적으로 생성되었습니다 (로컬).', 'success');
       };
-      setQuizzes(prevQuizzes => [newQuiz, ...prevQuizzes]);
+
+      if (isLocalMode) {
+        createLocalQuiz();
+        return;
+      }
+      
+      try {
+        const { data: quiz, error: quizError } = await supabase!.from('quizzes').insert({
+            title: newQuizData.title,
+            description: newQuizData.description,
+            image_url: newQuizData.imageUrl ?? null
+        }).select().single();
+        if (quizError) throw quizError;
+        if (!quiz) throw new Error("Quiz creation failed");
+
+        for (const q of newQuizData.questions) {
+            const { data: question, error: questionError } = await supabase!.from('quiz_questions').insert({
+                quiz_id: quiz.id,
+                text: q.text,
+                image_url: q.imageUrl ?? null,
+                correct_option_id_temp: q.correctOptionId
+            }).select().single();
+            if (questionError) throw questionError;
+            if (!question) throw new Error("Question creation failed");
+            
+            const optionsToInsert = q.options.map(opt => ({
+                question_id: question.id,
+                text: opt.text,
+            }));
+            const { error: optionsError } = await supabase!.from('quiz_question_options').insert(optionsToInsert);
+            if (optionsError) throw optionsError;
+        }
+
+        addToast('퀴즈가 성공적으로 생성되었습니다.', 'success');
+        await fetchAllData();
+        navigate('/');
+      } catch (error: any) {
+         addToast(`퀴즈 생성 실패: ${error.message}`, 'error');
+      }
+  }, [navigate, addToast, fetchAllData, isLocalMode]);
+
+  const handleCreateBugReport = useCallback(async ({ title, description, url, screenshotFile }: { title: string; description: string; url: string; screenshotFile: File | null; }) => {
+    if (isLocalMode) {
+      addToast('로컬 모드에서는 오류 제보를 할 수 없습니다.', 'error');
+      return;
+    }
+
+    try {
+      let screenshot_url: string | null = null;
+      if (screenshotFile) {
+        const filePath = `public/${Date.now()}-${screenshotFile.name}`;
+        const { error: uploadError } = await supabase!.storage
+          .from('bug_screenshots')
+          .upload(filePath, screenshotFile);
+        
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase!.storage
+          .from('bug_screenshots')
+          .getPublicUrl(filePath);
+        
+        screenshot_url = urlData.publicUrl;
+      }
+      
+      const { error: insertError } = await supabase!.from('bug_reports').insert({
+        title,
+        description,
+        url,
+        screenshot_url
+      });
+
+      if (insertError) throw insertError;
+
+      addToast('오류 제보가 성공적으로 제출되었습니다. 감사합니다!', 'success');
       navigate('/');
-      addToast('퀴즈가 성공적으로 생성되었습니다.', 'success');
-  }, [navigate, addToast]);
+
+    } catch (error: any) {
+      addToast(`오류 제보 제출 실패: ${error.message}`, 'error');
+      console.error('Bug report submission error:', error);
+    }
+  }, [isLocalMode, addToast, navigate]);
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800">
       <Header />
-      <main className="container mx-auto max-w-4xl p-4 sm:p-6">
+      <main className="container mx-auto max-w-4xl p-4 sm:p-6 pb-24">
         <Routes>
             <Route path="/" element={<HomePage votes={votes} ratings={ratings} quizzes={quizzes} loading={loading} />} />
             <Route path="/vote/:id" element={<VotePage votes={votes} onVote={handleVote} onRatePlayers={() => {}} />} />
@@ -303,8 +438,16 @@ const AppContent: React.FC = () => {
             <Route path="/create/vote" element={<CreateVotePage onCreateVote={handleCreateVote} />} />
             <Route path="/create/rating" element={<CreateRatingPage onCreateRating={handleCreateRating} />} />
             <Route path="/create/quiz" element={<CreateQuizPage onCreateQuiz={handleCreateQuiz} />} />
+            <Route path="/report-bug" element={<BugReportPage onSubmit={handleCreateBugReport} />} />
         </Routes>
       </main>
+      <button
+        onClick={() => navigate('/report-bug', { state: { from: location.pathname } })}
+        className="fixed bottom-6 right-6 bg-[#6366f1] text-white p-4 rounded-full shadow-lg hover:bg-[#4f46e5] transition-transform duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#4f46e5] z-20"
+        aria-label="Report a bug"
+      >
+        <BugIcon className="w-6 h-6" />
+      </button>
       <footer className="text-center p-6 text-sm text-gray-400">
         © 2024 SoccerVote. All rights reserved.
       </footer>
@@ -315,7 +458,7 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <ToastProvider>
-      {supabase ? <AppContent /> : <SupabaseErrorComponent />}
+      <AppContent />
     </ToastProvider>
   );
 };
