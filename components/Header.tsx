@@ -7,13 +7,13 @@ const Header: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+    <header className="bg-white shadow-sm sticky top-0 z-10">
       <div className="container mx-auto max-w-4xl p-4 flex justify-between items-center">
         <h1 
           className="text-2xl font-bold tracking-tighter cursor-pointer"
           onClick={() => navigate('/')}
         >
-          Soccer<span className="text-[#0a54ff]">Vote</span>
+          Soccer<span className="text-[#6366f1]">Vote</span>
         </h1>
         <Button onClick={() => navigate('/create')}>
           <PlusIcon className="w-4 h-4 mr-2" />

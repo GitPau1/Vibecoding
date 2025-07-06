@@ -1,35 +1,46 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { NewQuizQuestion } from '../types';
+import { Quiz, NewQuizQuestion } from '../types';
 import { Card } from './ui/Card';
 import { Input } from './ui/Input';
 import { Button } from './ui/Button';
 import { PlusIcon } from './icons/PlusIcon';
 import { useToast } from '../contexts/ToastContext';
-import { supabase } from '../supabaseClient';
 
-const CreateQuizPage: React.FC = () => {
+interface CreateQuizPageProps {
+  onCreateQuiz: (quizData: Omit<Quiz, 'id' | 'questions'> & { questions: NewQuizQuestion[] }) => void;
+}
+
+const CreateQuizPage: React.FC<CreateQuizPageProps> = ({ onCreateQuiz }) => {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
   const [questions, setQuestions] = useState<NewQuizQuestion[]>([
-    { text: '', options: [{ text: '' }, { text: '' }], correctOptionId: 1, imageUrl: '' }
+    { text: '', options: [{ text: '' }, { text: '' }], correctOptionId: 1 }
   ]);
   const { addToast } = useToast();
 
   const handleQuestionChange = (qIndex: number, field: 'text' | 'imageUrl', value: string) => {
-    const newQuestions = questions.map((q, i) => (i === qIndex ? { ...q, [field]: value } : q));
+    const newQuestions = questions.map((q, i) => {
+      if (i === qIndex) {
+        return { ...q, [field]: value };
+      }
+      return q;
+    });
     setQuestions(newQuestions);
   };
 
   const handleOptionChange = (qIndex: number, oIndex: number, value: string) => {
     const newQuestions = questions.map((question, cqIndex) => {
       if (qIndex === cqIndex) {
-        const newOptions = question.options.map((option, coIndex) => 
-          (oIndex === coIndex ? { ...option, text: value } : option)
-        );
+        const newOptions = question.options.map((option, coIndex) => {
+          if (oIndex === coIndex) {
+            return { ...option, text: value };
+          }
+          return option;
+        });
         return { ...question, options: newOptions };
       }
       return question;
@@ -54,17 +65,20 @@ const CreateQuizPage: React.FC = () => {
     if (questions[qIndex].options.length <= 2) return;
     const newQuestions = [...questions];
     newQuestions[qIndex].options.splice(oIndex, 1);
+    
+    // Adjust correctOptionId if the removed option was the correct one or before it
     if (newQuestions[qIndex].correctOptionId === oIndex + 1) {
-        newQuestions[qIndex].correctOptionId = 1;
+        newQuestions[qIndex].correctOptionId = 1; // Default to first
     } else if (newQuestions[qIndex].correctOptionId > oIndex + 1) {
         newQuestions[qIndex].correctOptionId -= 1;
     }
+
     setQuestions(newQuestions);
   };
 
   const addQuestion = () => {
     if (questions.length >= 20) return;
-    setQuestions([...questions, { text: '', options: [{ text: '' }, { text: '' }], correctOptionId: 1, imageUrl: '' }]);
+    setQuestions([...questions, { text: '', options: [{ text: '' }, { text: '' }], correctOptionId: 1 }]);
   };
 
   const removeQuestion = (qIndex: number) => {
@@ -72,43 +86,26 @@ const CreateQuizPage: React.FC = () => {
     setQuestions(questions.filter((_, index) => index !== qIndex));
   };
   
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if(title.trim() === '') {
         addToast('퀴즈 제목을 입력해주세요.', 'error');
         return;
     }
 
-    const validQuestions = questions
-      .filter(q => q.text.trim() !== '' && q.options.every(o => o.text.trim() !== ''))
-      .map((q, qIndex) => ({
-        id: qIndex + 1,
-        text: q.text.trim(),
-        imageUrl: q.imageUrl?.trim() || undefined,
-        options: q.options.map((o, oIndex) => ({ id: oIndex + 1, text: o.text.trim() })),
-        correctOptionId: q.correctOptionId
-      }));
+    const validQuestions = questions.filter(q => 
+        q.text.trim() !== '' &&
+        q.options.length >= 2 &&
+        q.options.every(o => o.text.trim() !== '') &&
+        q.correctOptionId > 0 && q.correctOptionId <= q.options.length
+    );
     
     if(validQuestions.length < 1) {
         addToast('하나 이상의 완전한 질문을 입력해주세요. (질문, 2개 이상의 선택지, 정답 선택 포함)', 'error');
         return;
     }
-
-    const quizToInsert = {
-      title: title.trim(),
-      description: description.trim() || null,
-      imageUrl: imageUrl || null,
-      questions: validQuestions
-    };
-
-    const { error } = await supabase.from('quizzes').insert(quizToInsert);
-
-    if (error) {
-        addToast(`퀴즈 생성 실패: ${error.message}`, 'error');
-    } else {
-        addToast('퀴즈가 성공적으로 생성되었습니다.', 'success');
-        navigate('/');
-    }
+    
+    onCreateQuiz({ title: title.trim(), description: description.trim(), imageUrl, questions: validQuestions });
   };
 
   return (
@@ -137,7 +134,7 @@ const CreateQuizPage: React.FC = () => {
         <h3 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">질문 설정</h3>
         <div className="space-y-6">
             {questions.map((q, qIndex) => (
-                <div key={qIndex} className="p-4 border rounded-lg bg-gray-50/50 space-y-4 relative group">
+                <div key={qIndex} className="p-4 border rounded-xl bg-gray-50/50 space-y-4 relative group">
                     {questions.length > 1 && (
                         <button type="button" onClick={() => removeQuestion(qIndex)} className="absolute top-3 right-3 text-gray-400 hover:text-red-500 font-bold w-7 h-7 rounded-full flex items-center justify-center bg-white border border-transparent hover:border-red-300 transition-all text-xl">&times;</button>
                     )}
@@ -155,7 +152,7 @@ const CreateQuizPage: React.FC = () => {
                         <p className="text-sm text-gray-600">선택지를 입력하고 정답을 선택하세요.</p>
                         {q.options.map((opt, oIndex) => (
                             <div key={oIndex} className="flex items-center gap-2">
-                                <input type="radio" name={`correct-opt-${qIndex}`} checked={q.correctOptionId === oIndex + 1} onChange={() => handleCorrectOptionChange(qIndex, oIndex)} className="w-5 h-5 accent-[#0a54ff]"/>
+                                <input type="radio" name={`correct-opt-${qIndex}`} checked={q.correctOptionId === oIndex + 1} onChange={() => handleCorrectOptionChange(qIndex, oIndex)} className="w-5 h-5 accent-[#6366f1]"/>
                                 <Input placeholder={`선택지 ${oIndex + 1}`} value={opt.text} onChange={e => handleOptionChange(qIndex, oIndex, e.target.value)} required />
                                 {q.options.length > 2 && (
                                     <button type="button" onClick={() => removeOption(qIndex, oIndex)} className="text-gray-400 hover:text-red-500 font-bold w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full hover:bg-red-50 transition-colors">&times;</button>

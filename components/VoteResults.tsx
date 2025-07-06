@@ -53,13 +53,13 @@ const VoteResults: React.FC<VoteResultsProps> = ({ vote, isExpired }) => {
                   <div className="flex items-center font-semibold text-gray-700">
                     {isWinner && !player && <TrophyIcon className="w-5 h-5 text-yellow-500 mr-1.5" />}
                     <span className={isWinner ? 'text-gray-900' : ''}>{option.label}</span>
-                    {isUserChoice && <CheckIcon className="w-4 h-4 text-[#0a54ff] ml-2" />}
+                    {isUserChoice && <CheckIcon className="w-4 h-4 text-[#6366f1] ml-2" />}
                   </div>
                   <span className={`font-bold ${isWinner ? 'text-gray-900' : 'text-gray-800'}`}>{percentage.toFixed(1)}%</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
                   <div 
-                    className={`${isWinner ? 'bg-gradient-to-r from-yellow-400 to-amber-500' : 'bg-[#0a54ff]'} h-3 rounded-full transition-all duration-1000 ease-out`}
+                    className={`${isWinner ? 'bg-gradient-to-r from-yellow-400 to-amber-500' : 'bg-[#6366f1]'} h-4 rounded-full transition-all duration-1000 ease-out`}
                     style={{ width: `${percentage}%` }}
                   ></div>
                 </div>

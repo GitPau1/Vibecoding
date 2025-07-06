@@ -38,7 +38,7 @@ const PlayerRatingInput: React.FC<PlayerRatingInputProps> = ({ player, ratingDat
                         onChange={(e) => onRatingChange(player.id, parseInt(e.target.value, 10))}
                         className={`custom-range w-full sm:w-32 ${!isRated ? 'unrated' : ''}`}
                     />
-                    <span className={`font-bold text-lg w-12 text-center ${isRated ? 'text-[#0a54ff]' : 'text-gray-400'}`}>{isRated ? currentRating?.toFixed(1) : '-'}</span>
+                    <span className={`font-bold text-lg w-12 text-center ${isRated ? 'text-[#6366f1]' : 'text-gray-400'}`}>{isRated ? currentRating?.toFixed(1) : '-'}</span>
                 </div>
             </div>
             {isRated && (
@@ -60,7 +60,7 @@ const PlayerRatingInput: React.FC<PlayerRatingInputProps> = ({ player, ratingDat
 
 interface PlayerRatingPageProps {
     vote: Vote;
-    onRate: (ratings: { [playerId: number]: { rating: number; comment: string | null; }; }) => void;
+    onRate: (voteId: string, ratings: { [playerId: number]: { rating: number; comment: string | null; }; }) => void;
 }
 
 const PlayerRatingPage: React.FC<PlayerRatingPageProps> = ({ vote, onRate }) => {
@@ -117,7 +117,7 @@ const PlayerRatingPage: React.FC<PlayerRatingPageProps> = ({ vote, onRate }) => 
             addToast('모든 선수의 평점을 매겨주세요.', 'error');
             return;
         }
-        onRate(ratings);
+        onRate(vote.id, ratings);
     };
 
     return (

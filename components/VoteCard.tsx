@@ -48,22 +48,22 @@ const VoteCard: React.FC<VoteCardProps> = ({ vote }) => {
         )}
         <div className="p-6 flex-grow">
             <div className="flex justify-between items-start mb-2">
-                <span className="text-xs font-semibold bg-gray-100 text-gray-600 px-2 py-1 rounded-full">{vote.type}</span>
+                <span className="text-xs font-semibold bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">{vote.type}</span>
                 {isExpired && vote.type !== VoteKind.RATING ? (
                     <span className="text-xs font-bold text-gray-500">투표 종료</span>
                 ) : vote.type === VoteKind.RATING ? (
                     <span className="text-xs font-bold text-green-600">평점 진행중</span>
                 ) : (
-                    <span className="text-xs font-bold text-[#0a54ff]">{diffDays}일 남음</span>
+                    <span className="text-xs font-bold text-[#6366f1]">{diffDays}일 남음</span>
                 )}
             </div>
             <h3 className="text-lg font-bold text-gray-900 mb-2">{vote.title}</h3>
             {vote.description && <p className="text-sm text-gray-500 line-clamp-2">{vote.description}</p>}
         </div>
-        <div className="border-t border-gray-200 px-6 py-3 bg-gray-50 rounded-b-lg">
+        <div className="border-t border-gray-200 px-6 py-3 bg-gray-50 rounded-b-2xl">
             <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-600">총 {totalVotes.toLocaleString()}명 참여</span>
-                <span className="font-semibold text-[#0a54ff] hover:underline">
+                <span className="font-semibold text-[#6366f1] hover:underline">
                     {getCtaText()}
                 </span>
             </div>

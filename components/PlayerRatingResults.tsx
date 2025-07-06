@@ -87,7 +87,7 @@ const PlayerRatingResults: React.FC<PlayerRatingResultsProps> = ({ vote }) => {
                 </div>
                 {userRating !== undefined && (
                     <div className="text-center sm:pl-4 sm:ml-4 sm:border-l border-gray-200 mt-2 sm:mt-0 pt-2 sm:pt-0 border-t sm:border-t-0">
-                        <p className="text-2xl font-bold text-[#0a54ff]">{userRating.toFixed(1)}</p>
+                        <p className="text-2xl font-bold text-[#6366f1]">{userRating.toFixed(1)}</p>
                         <p className="text-xs text-gray-500">내 평점</p>
                     </div>
                 )}

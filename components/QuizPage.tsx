@@ -6,53 +6,30 @@ import { Button } from './ui/Button';
 import { CheckCircleIcon } from './icons/CheckCircleIcon';
 import { XIcon } from './icons/XIcon';
 import { TrophyIcon } from './icons/TrophyIcon';
-import { supabase } from '../supabaseClient';
-import { useToast } from '../contexts/ToastContext';
 
-const QuizPage: React.FC = () => {
+interface QuizPageProps {
+  quizzes: Quiz[];
+}
+
+const QuizPage: React.FC<QuizPageProps> = ({ quizzes }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { addToast } = useToast();
-  const [quiz, setQuiz] = useState<Quiz | null>(null);
-  const [loading, setLoading] = useState(true);
+  const quiz = quizzes.find(q => q.id === id);
   
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<(number | null)[]>([]);
   const [isFinished, setIsFinished] = useState(false);
 
   useEffect(() => {
-    if (!id) {
-      navigate('/');
-      return;
+    if (!quiz) {
+      navigate('/', { replace: true });
+    } else {
+      setUserAnswers(Array(quiz.questions.length).fill(null));
     }
-    const fetchQuiz = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('quizzes')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error || !data) {
-        console.error("Error fetching quiz", error);
-        addToast('퀴즈를 불러오지 못했습니다.', 'error');
-        navigate('/', { replace: true });
-      } else {
-        setQuiz(data);
-        setUserAnswers(Array(data.questions.length).fill(null));
-      }
-      setLoading(false);
-    };
-
-    fetchQuiz();
-  }, [id, navigate, addToast]);
-
-  if (loading) {
-    return <Card className="p-6 md:p-8 text-center"><p className="text-gray-500">퀴즈를 불러오는 중...</p></Card>;
-  }
+  }, [quiz, navigate]);
 
   if (!quiz) {
-    return null;
+    return null; // 또는 로딩 표시기
   }
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
@@ -83,9 +60,9 @@ const QuizPage: React.FC = () => {
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900">퀴즈 결과</h2>
           <p className="mt-2 text-lg text-gray-600">"{quiz.title}"</p>
         </div>
-        <div className="text-center bg-blue-50 border-2 border-blue-200 rounded-lg p-6 mb-8">
-          <p className="text-lg font-semibold text-blue-800">최종 점수</p>
-          <p className="text-5xl font-bold text-[#0a54ff] my-2">{score} / {totalQuestions}</p>
+        <div className="text-center bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-6 mb-8">
+          <p className="text-lg font-semibold text-indigo-800">최종 점수</p>
+          <p className="text-5xl font-bold text-[#6366f1] my-2">{score} / {totalQuestions}</p>
           {score === totalQuestions && (
             <div className="flex items-center justify-center mt-3 text-amber-500 font-bold">
               <TrophyIcon className="w-6 h-6 mr-2"/>
@@ -100,7 +77,7 @@ const QuizPage: React.FC = () => {
             const userAnswerId = userAnswers[index];
             const isCorrect = userAnswerId === q.correctOptionId;
             return (
-              <div key={q.id} className="p-4 rounded-lg bg-gray-50 border">
+              <div key={q.id} className="p-4 rounded-xl bg-gray-50 border">
                 <p className="font-semibold text-gray-800 mb-3">{index + 1}. {q.text}</p>
                 <div className="space-y-2">
                   {q.options.map(option => {
@@ -112,7 +89,7 @@ const QuizPage: React.FC = () => {
                     if (isCorrectAnswer) bgClass = "bg-green-100 border-green-300";
 
                     return (
-                        <div key={option.id} className={`flex items-center p-3 rounded-md border text-sm ${bgClass}`}>
+                        <div key={option.id} className={`flex items-center p-3 rounded-lg border text-sm ${bgClass}`}>
                             <span className="flex-grow">{option.text}</span>
                             {isCorrectAnswer && <CheckCircleIcon className="w-5 h-5 text-green-600" />}
                             {isUserAnswer && !isCorrect && <XIcon className="w-5 h-5 text-red-600" />}
@@ -136,7 +113,7 @@ const QuizPage: React.FC = () => {
       )}
       <div className="p-6 md:p-8">
         <div className="flex justify-between items-center text-sm mb-2">
-            <span className="font-semibold text-[#0a54ff]">문제 {currentQuestionIndex + 1}/{totalQuestions}</span>
+            <span className="font-semibold text-[#6366f1]">문제 {currentQuestionIndex + 1}/{totalQuestions}</span>
             <span className="text-gray-500">{quiz.title}</span>
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mt-2">{currentQuestion.text}</h2>
@@ -148,10 +125,10 @@ const QuizPage: React.FC = () => {
             <button
               key={option.id}
               onClick={() => handleAnswerSelect(option.id)}
-              className={`w-full text-left p-4 rounded-lg border-2 transition-all duration-200 text-base
+              className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 text-base
                 ${userAnswers[currentQuestionIndex] === option.id 
-                  ? 'bg-[#0a54ff] text-white border-[#0a54ff] shadow-lg' 
-                  : 'bg-white hover:bg-gray-100 border-gray-200'}`}
+                  ? 'bg-[#6366f1] text-white border-[#4f46e5] shadow-lg' 
+                  : 'bg-white hover:bg-indigo-50 border-gray-200'}`}
             >
               {option.text}
             </button>

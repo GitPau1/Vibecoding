@@ -6,7 +6,7 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement | HTMLTe
 }
 
 export const Input: React.FC<InputProps> = ({ className, as = 'input', ...props }) => {
-  const baseClasses = "block w-full rounded-md border-gray-300 shadow-sm focus:border-[#0a54ff] focus:ring-[#0a54ff] sm:text-sm p-2";
+  const baseClasses = "block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1] sm:text-sm p-2.5";
   const combinedClasses = `${baseClasses} ${className}`;
   
   if (as === 'textarea') {

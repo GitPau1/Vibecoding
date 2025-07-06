@@ -1,16 +1,20 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { VoteKind, Player } from '../types';
+import { Vote, VoteKind, Player } from '../types';
+import { VoteCreationData } from '../App';
 import { Card } from './ui/Card';
 import { Input } from './ui/Input';
 import { Button } from './ui/Button';
 import { Select } from './ui/Select';
 import { PlusIcon } from './icons/PlusIcon';
 import { useToast } from '../contexts/ToastContext';
-import { supabase } from '../supabaseClient';
 
-const CreateVotePage: React.FC = () => {
+interface CreateVotePageProps {
+  onCreateVote: (voteData: VoteCreationData) => void;
+}
+
+const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote }) => {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -19,13 +23,16 @@ const CreateVotePage: React.FC = () => {
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
   const { addToast } = useToast();
   
+  // For Player type
   const [players, setPlayers] = useState<{ name: string; team: string; photoUrl: string }[]>([
     { name: '', team: '', photoUrl: '' }, { name: '', team: '', photoUrl: '' },
   ]);
 
+  // For Match/Topic type
   const [options, setOptions] = useState<{label: string}[]>([{ label: '' }, { label: '' }]);
 
   useEffect(() => {
+    // Reset options when type changes
     if (type === VoteKind.PLAYER) {
         setPlayers([{ name: '', team: '', photoUrl: '' }, { name: '', team: '', photoUrl: '' }]);
     } else {
@@ -34,35 +41,53 @@ const CreateVotePage: React.FC = () => {
   }, [type]);
 
   const handleOptionChange = (index: number, value: string) => {
-    const newOptions = options.map((option, i) => (i === index ? { ...option, label: value } : option));
+    const newOptions = options.map((option, i) => {
+      if (i === index) {
+        return { ...option, label: value };
+      }
+      return option;
+    });
     setOptions(newOptions);
   };
 
   const addOption = () => {
-      if(options.length < 10) setOptions([...options, { label: '' }]);
+      if(options.length < 10) {
+        setOptions([...options, { label: '' }]);
+      }
   };
 
   const removeOption = (index: number) => {
-      if(options.length > 2) setOptions(options.filter((_, i) => i !== index));
+      if(options.length > 2) {
+        setOptions(options.filter((_, i) => i !== index));
+      }
   };
 
   const handlePlayerListChange = (
     index: number, field: 'name' | 'team' | 'photoUrl', value: string
   ) => {
-    const newList = players.map((player, i) => (i === index ? { ...player, [field]: value } : player));
+    const newList = players.map((player, i) => {
+      if (i === index) {
+        return { ...player, [field]: value };
+      }
+      return player;
+    });
     setPlayers(newList);
   };
 
   const addPlayerToList = () => {
-    if (players.length < 25) setPlayers([...players, { name: '', team: '', photoUrl: '' }]);
+    if (players.length < 25) {
+      setPlayers([...players, { name: '', team: '', photoUrl: '' }]);
+    }
   };
 
   const removePlayerFromList = (index: number) => {
-    if (players.length > 2) setPlayers(players.filter((_, i) => i !== index));
+    if (players.length > 2) {
+      setPlayers(players.filter((_, i) => i !== index));
+    }
   };
 
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     let voteOptions: { label: string }[] = [];
     let votePlayers: Player[] | undefined = undefined;
@@ -97,24 +122,7 @@ const CreateVotePage: React.FC = () => {
         voteOptions = validOptions.map(opt => ({label: opt.label.trim()}));
     }
     
-    const voteToInsert = {
-      title: title.trim(),
-      description: description.trim() || null,
-      type,
-      endDate: new Date(endDate).toISOString(),
-      imageUrl: imageUrl || null,
-      options: voteOptions.map((opt, index) => ({ id: index + 1, label: opt.label, votes: 0 })),
-      players: votePlayers || null,
-    };
-
-    const { error } = await supabase.from('votes').insert(voteToInsert);
-    
-    if (error) {
-      addToast(`투표 생성 실패: ${error.message}`, 'error');
-    } else {
-      addToast('투표가 성공적으로 생성되었습니다.', 'success');
-      navigate('/');
-    }
+    onCreateVote({ title: title.trim(), description: description.trim(), type, endDate, imageUrl, options: voteOptions, players: votePlayers });
   };
 
   const PlayerInputs: React.FC<{
