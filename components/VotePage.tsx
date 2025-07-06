@@ -1,4 +1,5 @@
 
+
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Vote, VoteKind, VoteOption } from '../types';
@@ -10,6 +11,7 @@ import VoteResults from './VoteResults';
 import PlayerRatingPage from './PlayerRatingPage';
 import PlayerRatingResults from './PlayerRatingResults';
 import { TrophyIcon } from './icons/TrophyIcon';
+import { ImageWithFallback } from './ui/ImageWithFallback';
 
 interface VotePageProps {
   votes?: Vote[];
@@ -78,35 +80,35 @@ const VotePage: React.FC<VotePageProps> = ({ votes, ratings, onVote, onRatePlaye
 
 
   return (
-    <Card className="overflow-hidden">
-       {vote.imageUrl && (
-        <img src={vote.imageUrl} alt={vote.title} className="w-full h-56 md:h-64 object-cover" />
-      )}
-      <div className="p-6 md:p-8">
-        <span className="text-sm font-semibold text-[#6366f1]">{vote.type}</span>
-        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mt-2">{vote.title}</h2>
-        {vote.description && <p className="mt-3 text-gray-600">{vote.description}</p>}
-        <div className="mt-2 text-sm text-gray-500">
-          {isExpired ? `투표가 ${new Date(vote.endDate).toLocaleDateString()}에 종료되었습니다.` : `마감: ${new Date(vote.endDate).toLocaleDateString()}`}
-        </div>
-      </div>
-
-      {winner && (
-        <div className="border-t border-gray-200 bg-amber-50 p-6">
-          <div className="text-center">
-            <div className="flex justify-center items-center text-amber-600 mb-2">
-              <TrophyIcon className="w-6 h-6 mr-2" />
-              <p className="font-semibold text-base">투표 최종 1위</p>
-            </div>
-            <p className="text-2xl md:text-3xl font-bold text-gray-900">{winner.label}</p>
+    <div className="max-w-4xl mx-auto">
+      <Card className="overflow-hidden">
+        <ImageWithFallback src={vote.imageUrl} alt={vote.title} className="w-full h-56 md:h-64 lg:h-72 object-cover" />
+        <div className="p-6 md:p-8">
+          <span className="text-sm font-semibold text-[#6366f1]">{vote.type}</span>
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mt-2">{vote.title}</h2>
+          {vote.description && <p className="mt-3 text-gray-600">{vote.description}</p>}
+          <div className="mt-2 text-sm text-gray-500">
+            {isExpired ? `투표가 ${new Date(vote.endDate).toLocaleDateString()}에 종료되었습니다.` : `마감: ${new Date(vote.endDate).toLocaleDateString()}`}
           </div>
         </div>
-      )}
 
-      <div className="bg-gray-50 px-6 py-8 md:px-8 border-t border-gray-100">
-        {showResults ? renderResultsComponent() : renderVoteComponent()}
-      </div>
-    </Card>
+        {winner && (
+          <div className="border-t border-gray-200 bg-amber-50 p-6">
+            <div className="text-center">
+              <div className="flex justify-center items-center text-amber-600 mb-2">
+                <TrophyIcon className="w-6 h-6 mr-2" />
+                <p className="font-semibold text-base">투표 최종 1위</p>
+              </div>
+              <p className="text-2xl md:text-3xl font-bold text-gray-900">{winner.label}</p>
+            </div>
+          </div>
+        )}
+
+        <div className="bg-gray-50 px-6 py-8 md:px-8 border-t border-gray-100">
+          {showResults ? renderResultsComponent() : renderVoteComponent()}
+        </div>
+      </Card>
+    </div>
   );
 };
 

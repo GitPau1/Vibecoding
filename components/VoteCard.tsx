@@ -3,6 +3,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Vote, VoteKind } from '../types';
 import { Card } from './ui/Card';
+import { ImageWithFallback } from './ui/ImageWithFallback';
 
 interface VoteCardProps {
   vote: Vote;
@@ -43,9 +44,7 @@ const VoteCard: React.FC<VoteCardProps> = ({ vote }) => {
         tabIndex={0}
         onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleSelectVote()}
     >
-        {vote.imageUrl && (
-            <img src={vote.imageUrl} alt={vote.title} className="w-full h-40 object-cover" />
-        )}
+        <ImageWithFallback src={vote.imageUrl} alt={vote.title} className="w-full h-40 object-cover" />
         <div className="p-6 flex-grow">
             <div className="flex justify-between items-start mb-2">
                 <span className="text-xs font-semibold bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">{vote.type}</span>

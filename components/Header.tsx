@@ -8,7 +8,7 @@ const Header: React.FC = () => {
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-10">
-      <div className="container mx-auto max-w-4xl p-4 flex justify-between items-center">
+      <div className="container mx-auto max-w-7xl p-4 flex justify-between items-center">
         <h1 
           className="text-2xl font-bold tracking-tighter cursor-pointer"
           onClick={() => navigate('/')}

@@ -1,8 +1,10 @@
 
+
 import React, { useMemo } from 'react';
 import { Vote, Player } from '../types';
 import { Card } from './ui/Card';
 import { TrophyIcon } from './icons/TrophyIcon';
+import { ImageWithFallback } from './ui/ImageWithFallback';
 
 interface PlayerRatingResultsProps {
     vote: Vote;
@@ -73,7 +75,7 @@ const PlayerRatingResults: React.FC<PlayerRatingResultsProps> = ({ vote }) => {
 
         return (
              <Card className={`p-4 flex flex-col sm:flex-row items-center gap-4 transition-all ${isHighest ? 'bg-amber-50 border-amber-300' : ''}`}>
-                <img src={player.photoUrl || `https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(player.name)}`} alt={player.name} className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-md" />
+                <ImageWithFallback src={player.photoUrl} alt={player.name} className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-md" />
                 <div className="flex-grow text-center sm:text-left">
                     <div className="flex items-center gap-2 justify-center sm:justify-start">
                         {isHighest && <TrophyIcon className="w-5 h-5 text-amber-500" />}

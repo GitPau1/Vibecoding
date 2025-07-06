@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Vote, Quiz, NewQuizQuestion, VoteKind, Player, Article } from './types';
@@ -46,7 +47,6 @@ const AppContent: React.FC = () => {
     try {
       setLoading(true);
       
-      // Fetch Votes & Ratings
       const { data: voteData, error: voteError } = await supabase!
         .from('votes')
         .select(`
@@ -81,7 +81,6 @@ const AppContent: React.FC = () => {
       setVotes(allVotes.filter(v => v.type !== VoteKind.RATING));
       setRatings(allVotes.filter(v => v.type === VoteKind.RATING));
 
-      // Fetch Quizzes
       const { data: quizData, error: quizError } = await supabase!
         .from('quizzes')
         .select(`*, questions:quiz_questions(*, options:quiz_question_options(*))`)
@@ -104,7 +103,6 @@ const AppContent: React.FC = () => {
       }));
       setQuizzes(formattedQuizzes);
 
-      // Fetch Articles
       const { data: articleData, error: articleError } = await supabase!
         .from('articles')
         .select('*')
@@ -137,7 +135,6 @@ const AppContent: React.FC = () => {
     if (isLocalMode) {
       if(isInitialLoad) {
         setLoading(true);
-        // Deep copy to prevent mutation of constant data
         const userVotes = JSON.parse(localStorage.getItem('userVotes') || '{}');
         const userRatings = JSON.parse(localStorage.getItem('userRatings') || '{}');
         const userRecommendedArticles = JSON.parse(localStorage.getItem('userRecommendedArticles') || '{}');
@@ -154,7 +151,7 @@ const AppContent: React.FC = () => {
     
     window.scrollTo(0, 0);
 
-  }, [isLocalMode, location.pathname, fetchAllData]);
+  }, [isLocalMode, location.pathname, fetchAllData, votes.length, ratings.length, quizzes.length, articles.length]);
 
   useEffect(() => {
     if (isLocalMode) {
@@ -245,7 +242,7 @@ const AppContent: React.FC = () => {
             return supabase!.from('vote_options').update({
                 votes: option.votes + data.rating,
                 rating_count: (option.ratingCount || 0) + 1,
-                comments: newComments
+                comments: newComments as any
             }).eq('id', option.id);
         }).filter(Boolean);
 
@@ -290,7 +287,7 @@ const AppContent: React.FC = () => {
                 type: newVoteData.type,
                 end_date: newVoteData.endDate,
                 image_url: newVoteData.imageUrl ?? null,
-                players: newVoteData.players ?? null,
+                players: newVoteData.players as any ?? null,
             }).select().single();
 
         if (voteError) throw voteError;
@@ -346,7 +343,7 @@ const AppContent: React.FC = () => {
             description: newRatingData.description ?? null,
             type: VoteKind.RATING,
             end_date: newRatingData.endDate,
-            players: newRatingData.players ?? null,
+            players: newRatingData.players as any ?? null,
         }).select().single();
 
         if (voteError) throw voteError;
@@ -574,7 +571,7 @@ const AppContent: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800">
       <Header />
-      <main className="container mx-auto max-w-4xl p-4 sm:p-6 pb-24">
+      <main className="container mx-auto p-4 sm:p-6 pb-24">
         <Routes>
             <Route path="/" element={<HomePage votes={votes} ratings={ratings} quizzes={quizzes} articles={articles} loading={loading} />} />
             <Route path="/vote/:id" element={<VotePage votes={votes} onVote={handleVote} onRatePlayers={() => {}} />} />

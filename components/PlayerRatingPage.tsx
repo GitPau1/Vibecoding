@@ -1,10 +1,12 @@
 
+
 import React, { useState, useMemo } from 'react';
 import { Vote, Player } from '../types';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { useToast } from '../contexts/ToastContext';
 import { Input } from './ui/Input';
+import { ImageWithFallback } from './ui/ImageWithFallback';
 
 interface PlayerRatingInputProps {
     player: Player;
@@ -23,7 +25,7 @@ const PlayerRatingInput: React.FC<PlayerRatingInputProps> = ({ player, ratingDat
     return (
         <Card className="p-4">
             <div className="flex flex-col sm:flex-row items-center gap-4">
-                <img src={player.photoUrl || `https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(player.name)}`} alt={player.name} className="w-16 h-16 rounded-full object-cover border-2 border-gray-200" />
+                <ImageWithFallback src={player.photoUrl} alt={player.name} className="w-16 h-16 rounded-full object-cover border-2 border-gray-200" />
                 <div className="flex-grow text-center sm:text-left">
                     <p className="font-bold text-lg text-gray-900">{player.name}</p>
                     <p className="text-sm text-gray-500">{player.team}</p>

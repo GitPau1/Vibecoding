@@ -1,13 +1,6 @@
 
-import { createClient } from '@supabase/supabase-js';
 
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+import { createClient } from '@supabase/supabase-js';
 
 export type Database = {
   public: {
@@ -135,7 +128,7 @@ export type Database = {
       }
       vote_options: {
         Row: {
-          comments: string[] | null
+          comments: any | null
           created_at: string
           id: string
           label: string
@@ -144,7 +137,7 @@ export type Database = {
           votes: number
         }
         Insert: {
-          comments?: string[] | null
+          comments?: any | null
           created_at?: string
           id?: string
           label: string
@@ -153,7 +146,7 @@ export type Database = {
           votes?: number
         }
         Update: {
-          comments?: string[] | null
+          comments?: any | null
           created_at?: string
           id?: string
           label?: string
@@ -169,7 +162,7 @@ export type Database = {
           end_date: string
           id: string
           image_url: string | null
-          players: Json | null
+          players: any | null
           title: string
           type: string
         }
@@ -179,7 +172,7 @@ export type Database = {
           end_date: string
           id?: string
           image_url?: string | null
-          players?: Json | null
+          players?: any | null
           title: string
           type: string
         }
@@ -189,7 +182,7 @@ export type Database = {
           end_date?: string
           id?: string
           image_url?: string | null
-          players?: Json | null
+          players?: any | null
           title?: string
           type?: string
         }

@@ -110,63 +110,65 @@ const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating }) =
   };
 
   return (
-    <Card className="p-6 md:p-8">
-      <h2 className="text-2xl font-bold mb-1">선수 평점 생성</h2>
-      <p className="text-gray-500 mb-6">종료된 경기의 선수 평점을 생성하고 공유해보세요.</p>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">평점 제목</label>
-          <Input id="title" value={title} onChange={e => setTitle(e.target.value)} placeholder="예: 2026 월드컵 예선 중국전 선수 평점" required />
-        </div>
-        <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">설명 (선택)</label>
-          <Input as="textarea" id="description" value={description} onChange={e => setDescription(e.target.value)} placeholder="평점에 대한 간단한 설명을 입력하세요." />
-        </div>
-        
-        <div>
-            <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">경기 날짜</label>
-            <Input id="endDate" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} required />
-            <p className="text-xs text-gray-500 mt-1">평점은 생성 즉시 시작됩니다. 경기 날짜를 선택해주세요.</p>
-        </div>
-        
-        <div className="space-y-6">
-            <h3 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">선수 명단 입력</h3>
-            <div>
-                <h4 className="text-md font-semibold text-gray-700 mb-2">선발 선수 (최소 1명)</h4>
-                <div className="space-y-3">
-                    <PlayerInputs 
-                        playerList={starters}
-                        onPlayerChange={handleStarterChange}
-                        onRemovePlayer={(index) => removePlayerFromList(setStarters, index, 1)}
-                        minPlayers={1}
-                    />
-                    <Button type="button" variant="outline" onClick={() => addPlayerToList(setStarters)}>
-                        <PlusIcon className="w-4 h-4 mr-2" /> 선발 선수 추가
-                    </Button>
-                </div>
-            </div>
-            <div>
-                <h4 className="text-md font-semibold text-gray-700 mb-2">교체 선수 (선택)</h4>
-                <div className="space-y-3">
-                    <PlayerInputs 
-                        playerList={substitutes}
-                        onPlayerChange={handleSubstituteChange}
-                        onRemovePlayer={(index) => removePlayerFromList(setSubstitutes, index, 0)}
-                        minPlayers={0}
-                    />
-                    <Button type="button" variant="outline" onClick={() => addPlayerToList(setSubstitutes)}>
-                        <PlusIcon className="w-4 h-4 mr-2" /> 교체 선수 추가
-                    </Button>
-                </div>
-            </div>
-        </div>
+    <div className="max-w-4xl mx-auto">
+      <Card className="p-6 md:p-8">
+        <h2 className="text-2xl font-bold mb-1">선수 평점 생성</h2>
+        <p className="text-gray-500 mb-6">종료된 경기의 선수 평점을 생성하고 공유해보세요.</p>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">평점 제목</label>
+            <Input id="title" value={title} onChange={e => setTitle(e.target.value)} placeholder="예: 2026 월드컵 예선 중국전 선수 평점" required />
+          </div>
+          <div>
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">설명 (선택)</label>
+            <Input as="textarea" id="description" value={description} onChange={e => setDescription(e.target.value)} placeholder="평점에 대한 간단한 설명을 입력하세요." />
+          </div>
+          
+          <div>
+              <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">경기 날짜</label>
+              <Input id="endDate" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} required />
+              <p className="text-xs text-gray-500 mt-1">평점은 생성 즉시 시작됩니다. 경기 날짜를 선택해주세요.</p>
+          </div>
+          
+          <div className="space-y-6">
+              <h3 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">선수 명단 입력</h3>
+              <div>
+                  <h4 className="text-md font-semibold text-gray-700 mb-2">선발 선수 (최소 1명)</h4>
+                  <div className="space-y-3">
+                      <PlayerInputs 
+                          playerList={starters}
+                          onPlayerChange={handleStarterChange}
+                          onRemovePlayer={(index) => removePlayerFromList(setStarters, index, 1)}
+                          minPlayers={1}
+                      />
+                      <Button type="button" variant="outline" onClick={() => addPlayerToList(setStarters)}>
+                          <PlusIcon className="w-4 h-4 mr-2" /> 선발 선수 추가
+                      </Button>
+                  </div>
+              </div>
+              <div>
+                  <h4 className="text-md font-semibold text-gray-700 mb-2">교체 선수 (선택)</h4>
+                  <div className="space-y-3">
+                      <PlayerInputs 
+                          playerList={substitutes}
+                          onPlayerChange={handleSubstituteChange}
+                          onRemovePlayer={(index) => removePlayerFromList(setSubstitutes, index, 0)}
+                          minPlayers={0}
+                      />
+                      <Button type="button" variant="outline" onClick={() => addPlayerToList(setSubstitutes)}>
+                          <PlusIcon className="w-4 h-4 mr-2" /> 교체 선수 추가
+                      </Button>
+                  </div>
+              </div>
+          </div>
 
-        <div className="flex justify-end gap-4 pt-4 border-t">
-          <Button type="button" variant="outline" onClick={() => navigate(-1)}>취소</Button>
-          <Button type="submit">평점 생성하기</Button>
-        </div>
-      </form>
-    </Card>
+          <div className="flex justify-end gap-4 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={() => navigate(-1)}>취소</Button>
+            <Button type="submit">평점 생성하기</Button>
+          </div>
+        </form>
+      </Card>
+    </div>
   );
 };
 

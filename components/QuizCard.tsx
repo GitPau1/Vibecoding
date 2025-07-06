@@ -1,7 +1,9 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Quiz } from '../types';
 import { Card } from './ui/Card';
+import { ImageWithFallback } from './ui/ImageWithFallback';
 
 interface QuizCardProps {
   quiz: Quiz;
@@ -22,9 +24,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ quiz }) => {
         tabIndex={0}
         onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleSelectQuiz()}
     >
-        {quiz.imageUrl && (
-            <img src={quiz.imageUrl} alt={quiz.title} className="w-full h-40 object-cover" />
-        )}
+        <ImageWithFallback src={quiz.imageUrl} alt={quiz.title} className="w-full h-40 object-cover" />
         <div className="p-6 flex-grow">
             <div className="flex justify-between items-start mb-2">
                 <span className="text-xs font-semibold bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">퀴즈</span>

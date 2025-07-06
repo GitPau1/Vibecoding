@@ -1,8 +1,10 @@
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeftIcon } from './icons/ChevronLeftIcon';
 import { ChevronRightIcon } from './icons/ChevronRightIcon';
+import { ImageWithFallback } from './ui/ImageWithFallback';
 
 type CarouselItem = {
   id: string;
@@ -54,7 +56,7 @@ const Carousel: React.FC<CarouselProps> = ({ items }) => {
 
   return (
     <div 
-        className="carousel-container" 
+        className="carousel-container h-[300px] md:h-[400px] desktop:h-[450px]" 
         onMouseEnter={handleMouseEnter} 
         onMouseLeave={handleMouseLeave}
     >
@@ -64,9 +66,9 @@ const Carousel: React.FC<CarouselProps> = ({ items }) => {
       >
         {items.map(item => (
           <div key={item.id} className="carousel-slide" onClick={() => navigate(item.path)}>
-            <img src={item.imageUrl || `https://via.placeholder.com/800x400?text=${encodeURIComponent(item.title)}`} alt={item.title} />
-            <div className="overlay">
-              <h3 className="slide-title">{item.title}</h3>
+            <ImageWithFallback src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" />
+            <div className="overlay p-6 md:p-8 lg:p-10">
+              <h3 className="text-white text-2xl md:text-3xl lg:text-4xl font-extrabold leading-tight text-shadow-lg">{item.title}</h3>
             </div>
           </div>
         ))}

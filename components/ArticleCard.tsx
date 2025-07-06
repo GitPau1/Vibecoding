@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Article } from '../types';
 import { Card } from './ui/Card';
 import { ThumbsUpIcon } from './icons/ThumbsUpIcon';
+import { ImageWithFallback } from './ui/ImageWithFallback';
 
 interface ArticleCardProps {
   article: Article;
@@ -26,9 +27,7 @@ const ArticleCard: React.FC<ArticleCardProps> = ({ article }) => {
         tabIndex={0}
         onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleSelectArticle()}
     >
-        {article.imageUrl && (
-            <img src={article.imageUrl} alt={article.title} className="w-full h-40 object-cover" />
-        )}
+        <ImageWithFallback src={article.imageUrl} alt={article.title} className="w-full h-40 object-cover" />
         <div className="p-6 flex-grow">
             <div className="flex justify-between items-start mb-2">
                 <span className="text-xs font-semibold bg-green-100 text-green-700 px-2 py-1 rounded-full">아티클</span>

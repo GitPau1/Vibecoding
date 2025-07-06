@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import { Vote, Quiz, Article } from '../types';
 import VoteCard from './VoteCard';
@@ -54,9 +55,10 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, articles, 
   }
   
   const LoadingSkeleton = () => (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {[...Array(2)].map((_, i) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 desktop:grid-cols-3 gap-6">
+        {[...Array(3)].map((_, i) => (
             <div key={i} className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 animate-pulse">
+                <div className="aspect-video bg-gray-200 rounded-t-2xl -m-6 mb-6"></div>
                 <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
                 <div className="h-6 bg-gray-300 rounded w-3/4 mb-2"></div>
                 <div className="h-4 bg-gray-200 rounded w-full mb-4"></div>
@@ -73,19 +75,18 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, articles, 
   );
   
   const CarouselSkeleton = () => (
-    <div className="carousel-container bg-gray-200 animate-pulse"></div>
+    <div className="h-[300px] md:h-[400px] desktop:h-[450px] w-full bg-gray-200 animate-pulse rounded-3xl"></div>
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 max-w-7xl mx-auto">
       {loading ? (
         <CarouselSkeleton />
       ) : (
         recentItems.length > 0 && <Carousel items={recentItems} />
       )}
       
-      {/* Tab Navigation */}
-      <div className="p-1.5 bg-gray-100 rounded-full w-full">
+      <div className="p-1.5 bg-gray-100 rounded-full w-full max-w-2xl mx-auto">
         <nav className="flex items-center space-x-1" aria-label="Tabs">
           <button
             onClick={() => setActiveTab('votes')}
@@ -114,7 +115,6 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, articles, 
         </nav>
       </div>
 
-      {/* Tab Content */}
       <div className="mt-8">
        {loading ? <LoadingSkeleton /> : (
          <>
@@ -123,7 +123,7 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, articles, 
                 <section>
                   <h3 className="text-2xl font-bold text-gray-900 mb-4">진행중인 투표</h3>
                   {ongoingVotes.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 desktop:grid-cols-3 gap-6">
                       {ongoingVotes.map(vote => (
                         <VoteCard key={vote.id} vote={vote} />
                       ))}
@@ -139,7 +139,7 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, articles, 
                 {finishedVotes.length > 0 && (
                   <section>
                     <h3 className="text-2xl font-bold text-gray-900 mb-4">마감된 투표</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 desktop:grid-cols-3 gap-6">
                       {finishedVotes.map(vote => (
                         <VoteCard key={vote.id} vote={vote} />
                       ))}
@@ -153,7 +153,7 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, articles, 
               <section>
                  <h3 className="text-2xl font-bold text-gray-900 mb-4">선수 평점</h3>
                 {sortedRatings.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 desktop:grid-cols-3 gap-6">
                     {sortedRatings.map(rating => (
                       <VoteCard key={rating.id} vote={rating} />
                     ))}
@@ -171,7 +171,7 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, articles, 
               <section>
                  <h3 className="text-2xl font-bold text-gray-900 mb-4">도전! 퀴즈</h3>
                 {quizzes.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 desktop:grid-cols-3 gap-6">
                     {quizzes.map(quiz => (
                       <QuizCard key={quiz.id} quiz={quiz} />
                     ))}
@@ -189,7 +189,7 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, articles, 
               <section>
                  <h3 className="text-2xl font-bold text-gray-900 mb-4">최신 아티클</h3>
                 {sortedArticles.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 desktop:grid-cols-3 gap-6">
                     {sortedArticles.map(article => (
                       <ArticleCard key={article.id} article={article} />
                     ))}

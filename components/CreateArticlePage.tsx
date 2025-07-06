@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from './ui/Card';
@@ -6,6 +7,7 @@ import { Input } from './ui/Input';
 import { Button } from './ui/Button';
 import { useToast } from '../contexts/ToastContext';
 import { ArticleCreationData } from '../App';
+import { ImageWithFallback } from './ui/ImageWithFallback';
 
 interface CreateArticlePageProps {
   onCreateArticle: (articleData: ArticleCreationData) => void;
@@ -34,22 +36,18 @@ const CreateArticlePage: React.FC<CreateArticlePageProps> = ({ onCreateArticle }
 
     const isBold = document.queryCommandState('bold');
     
-    let node = selection.anchorNode;
-    let isH2 = false, isH3 = false, isP = false;
-
-    while (node && node !== editorRef.current) {
-      const nodeName = node.nodeName.toUpperCase();
-      if (nodeName === 'H2') isH2 = true;
-      if (nodeName === 'H3') isH3 = true;
-      if (nodeName === 'P') isP = true;
-      node = node.parentNode;
-    }
+    // Use queryCommandValue for more reliable block format detection
+    const blockFormat = document.queryCommandValue('formatBlock').toLowerCase();
     
-    // Default to P if no other block element is found
-    if (!isH2 && !isH3 && !isP) isP = true;
-
-
-    setActiveFormats({ bold: isBold, h2: isH2, h3: isH3, p: isP && !isH2 && !isH3 });
+    const isH2 = blockFormat === 'h2';
+    const isH3 = blockFormat === 'h3';
+    
+    setActiveFormats({
+      bold: isBold,
+      h2: isH2,
+      h3: isH3,
+      p: !isH2 && !isH3,
+    });
   }, []);
 
   useEffect(() => {
@@ -88,63 +86,65 @@ const CreateArticlePage: React.FC<CreateArticlePageProps> = ({ onCreateArticle }
   };
 
   return (
-    <Card className="p-6 md:p-8">
-      <h2 className="text-2xl font-bold mb-6">새로운 아티클 작성</h2>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">제목</label>
-          <Input id="title" value={title} onChange={e => setTitle(e.target.value)} placeholder="아티클의 제목을 입력하세요" required />
-        </div>
-        <div>
-          <label htmlFor="body-editor" className="block text-sm font-medium text-gray-700 mb-1">본문</label>
-          <div className="wysiwyg-toolbar">
-            <button type="button" onClick={() => formatDoc('bold')} className={activeFormats.bold ? 'active' : ''}><b>B</b></button>
-            <button type="button" onClick={() => formatDoc('formatBlock', 'H2')} className={activeFormats.h2 ? 'active' : ''}>H2</button>
-            <button type="button" onClick={() => formatDoc('formatBlock', 'H3')} className={activeFormats.h3 ? 'active' : ''}>H3</button>
-            <button type="button" onClick={() => formatDoc('formatBlock', 'p')} className={activeFormats.p ? 'active' : ''}>P</button>
+    <div className="max-w-4xl mx-auto">
+      <Card className="p-6 md:p-8">
+        <h2 className="text-2xl font-bold mb-6">새로운 아티클 작성</h2>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">제목</label>
+            <Input id="title" value={title} onChange={e => setTitle(e.target.value)} placeholder="아티클의 제목을 입력하세요" required />
           </div>
-          <div
-            id="body-editor"
-            ref={editorRef}
-            className="wysiwyg-editor article-body"
-            contentEditable="true"
-            onInput={handleBodyChange}
-            data-placeholder="아티클 내용을 입력하세요..."
-            // By removing dangerouslySetInnerHTML, we prevent React from re-rendering
-            // the content on every input, which was causing the cursor to jump.
-            // The browser now manages the content, and React just reads it via onInput.
-            onFocus={updateToolbar}
-            onClick={updateToolbar}
-            onKeyUp={updateToolbar}
-          />
-        </div>
-        <div>
-          <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700 mb-1">대표 이미지 URL (선택)</label>
-          <Input
-            id="imageUrl"
-            value={imageUrl || ''}
-            onChange={(e) => setImageUrl(e.target.value)}
-            placeholder="https://example.com/image.png"
-          />
-          {imageUrl && (
-            <div className="mt-4 text-center">
-              <img src={imageUrl} alt="Preview" className="mx-auto h-32 w-auto object-cover rounded-md border" />
-              <button
-                type="button"
-                onClick={() => setImageUrl(undefined)}
-                className="mt-2 text-sm font-medium text-red-600 hover:text-red-500"
-              >
-                이미지 링크 삭제
-              </button>
+          <div>
+            <label htmlFor="body-editor" className="block text-sm font-medium text-gray-700 mb-1">본문</label>
+            <div className="wysiwyg-toolbar">
+              <button type="button" onClick={() => formatDoc('bold')} className={activeFormats.bold ? 'active' : ''}><b>B</b></button>
+              <button type="button" onClick={() => formatDoc('formatBlock', 'H2')} className={activeFormats.h2 ? 'active' : ''}>H2</button>
+              <button type="button" onClick={() => formatDoc('formatBlock', 'H3')} className={activeFormats.h3 ? 'active' : ''}>H3</button>
+              <button type="button" onClick={() => formatDoc('formatBlock', 'p')} className={activeFormats.p ? 'active' : ''}>P</button>
             </div>
-          )}
-        </div>
-        <div className="flex justify-end gap-4 pt-4 border-t">
-          <Button type="button" variant="outline" onClick={() => navigate(-1)}>취소</Button>
-          <Button type="submit">아티클 게시하기</Button>
-        </div>
-      </form>
-    </Card>
+            <div
+              id="body-editor"
+              ref={editorRef}
+              className="wysiwyg-editor article-body"
+              contentEditable="true"
+              onInput={handleBodyChange}
+              data-placeholder="아티클 내용을 입력하세요..."
+              // By removing dangerouslySetInnerHTML, we prevent React from re-rendering
+              // the content on every input, which was causing the cursor to jump.
+              // The browser now manages the content, and React just reads it via onInput.
+              onFocus={updateToolbar}
+              onClick={updateToolbar}
+              onKeyUp={updateToolbar}
+            />
+          </div>
+          <div>
+            <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700 mb-1">대표 이미지 URL (선택)</label>
+            <Input
+              id="imageUrl"
+              value={imageUrl || ''}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder="https://example.com/image.png"
+            />
+            {imageUrl && (
+              <div className="mt-4 text-center">
+                <ImageWithFallback src={imageUrl} alt="Preview" className="mx-auto h-32 w-auto object-cover rounded-md border" />
+                <button
+                  type="button"
+                  onClick={() => setImageUrl(undefined)}
+                  className="mt-2 text-sm font-medium text-red-600 hover:text-red-500"
+                >
+                  이미지 링크 삭제
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end gap-4 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={() => navigate(-1)}>취소</Button>
+            <Button type="submit">아티클 게시하기</Button>
+          </div>
+        </form>
+      </Card>
+    </div>
   );
 };
 

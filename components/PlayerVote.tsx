@@ -2,6 +2,7 @@
 import React from 'react';
 import { Vote } from '../types';
 import { Card } from './ui/Card';
+import { ImageWithFallback } from './ui/ImageWithFallback';
 
 interface PlayerVoteProps {
   vote: Vote;
@@ -19,7 +20,7 @@ const PlayerVote: React.FC<PlayerVoteProps> = ({ vote, onVote }) => {
             className="p-4 text-center cursor-pointer hover:bg-gray-100 hover:shadow-md transition-all duration-200"
             onClick={() => onVote(vote.options[index].id)}
           >
-            <img 
+            <ImageWithFallback 
               src={player.photoUrl} 
               alt={player.name}
               className="w-24 h-24 rounded-full mx-auto object-cover border-2 border-gray-200"
