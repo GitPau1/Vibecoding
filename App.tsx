@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Vote, Quiz, NewQuizQuestion, VoteKind, Player, VoteOption } from './types';
@@ -22,19 +23,22 @@ const SupabaseErrorComponent: React.FC = () => (
     <div className="text-center p-8 bg-white shadow-lg rounded-xl max-w-lg border-t-4 border-red-500">
       <h2 className="text-2xl font-bold text-red-600 mb-4">Supabase 설정 오류</h2>
       <p className="text-gray-700 mb-4">
-        Supabase 클라이언트를 초기화할 수 없습니다. 웹사이트가 데이터베이스에 연결되지 않았습니다.
+        Supabase 클라이언트를 초기화할 수 없습니다. Vercel 또는 로컬 환경에 환경 변수가 올바르게 설정되었는지 확인하세요.
       </p>
       <p className="text-gray-600 text-left">
-        이 문제를 해결하려면 프로젝트의 루트 디렉토리에 <code>.env</code> 파일을 생성하고 다음 내용을 추가해야 합니다:
+        이 프로젝트는 Vite를 사용하므로 환경 변수는 <code>VITE_</code> 접두사를 사용해야 합니다. 프로젝트 루트에 <code>.env</code> 파일을 생성하고 다음 내용을 추가하세요:
       </p>
       <pre className="my-4 p-4 bg-gray-100 rounded-md text-left text-sm text-gray-800 overflow-x-auto">
         <code>
-          REACT_APP_SUPABASE_URL=YOUR_SUPABASE_URL<br />
-          REACT_APP_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+          VITE_SUPABASE_URL=YOUR_SUPABASE_URL<br />
+          VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
         </code>
       </pre>
       <p className="text-sm text-gray-500 text-left">
-        <code>YOUR_SUPABASE_URL</code>과 <code>YOUR_SUPABASE_ANON_KEY</code>를 Supabase 프로젝트의 값으로 교체해주세요. 환경 변수를 설정한 후에는 애플리케이션을 다시 시작해야 합니다.
+        <code>YOUR_SUPABASE_URL</code>과 <code>YOUR_SUPABASE_ANON_KEY</code>를 Supabase 프로젝트의 값으로 교체해주세요. <strong>Vercel에 배포할 때는 Vercel 프로젝트 설정의 환경 변수에도 동일하게 <code>VITE_</code> 접두사를 사용하여 이 변수들을 추가해야 합니다.</strong>
+      </p>
+      <p className="text-sm text-gray-500 text-left mt-2">
+         환경 변수를 설정한 후에는 로컬 서버를 다시 시작하거나 Vercel 배포를 다시 트리거해야 합니다.
       </p>
     </div>
   </div>

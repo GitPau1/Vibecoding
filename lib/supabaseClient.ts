@@ -1,6 +1,5 @@
 
 import { createClient } from '@supabase/supabase-js';
-import { Player } from '../types';
 
 export type Json =
   | string
@@ -164,16 +163,23 @@ export type Database = {
   }
 }
 
-// This application is a standard React setup, not a Next.js application.
-// In client-side React apps (like those created with Create React App),
-// environment variables must be prefixed with `REACT_APP_` to be exposed to the browser.
-// The `NEXT_PUBLIC_` prefix is specific to Next.js and will not work here.
+// This application uses Vite, a modern build tool for web development.
+// For client-side applications built with Vite, environment variables must be
+// prefixed with `VITE_` to be exposed to the browser for security reasons.
+// This is different from Create React App which uses `REACT_APP_`.
 //
-// Please ensure you have a `.env` file in your project's root directory with the following:
-// REACT_APP_SUPABASE_URL=your-supabase-url
-// REACT_APP_SUPABASE_ANON_KEY=your-supabase-anon-key
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
-const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+// When deploying to Vercel, you must set these environment variables in your
+// Vercel project's settings. Make sure they are also prefixed with `VITE_`.
+//
+// For local development, create a `.env` file in the project's root directory with:
+// VITE_SUPABASE_URL=your-supabase-url
+// VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+
+// Safely access environment variables to prevent crashes when `import.meta.env` is undefined.
+// This can happen in environments that do not use Vite or a similar build tool.
+const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
+const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
+
 
 // We initialize the client, but it will be null if the environment variables are missing.
 // The main App component will handle this case and display a message to the user.
@@ -182,7 +188,7 @@ export const supabase = (supabaseUrl && supabaseAnonKey)
   : null;
 
 if (!supabase) {
-  console.warn("Supabase configuration is missing. The app will display an error message. Please set REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY in your environment.");
+  console.warn("Supabase configuration is missing. The app will display an error message. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment.");
 }
 
 /*
