@@ -5,7 +5,7 @@ import { Button } from './ui/Button';
 
 interface MatchVoteProps {
   vote: Vote;
-  onVote: (optionId: number) => void;
+  onVote: (optionId: string) => void;
 }
 
 const MatchVote: React.FC<MatchVoteProps> = ({ vote, onVote }) => {

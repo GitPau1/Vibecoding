@@ -5,7 +5,7 @@ import { Button } from './ui/Button';
 
 interface TopicVoteProps {
   vote: Vote;
-  onVote: (optionId: number) => void;
+  onVote: (optionId: string) => void;
 }
 
 const TopicVote: React.FC<TopicVoteProps> = ({ vote, onVote }) => {

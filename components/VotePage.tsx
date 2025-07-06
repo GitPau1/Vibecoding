@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Vote, VoteKind, VoteOption } from '../types';
@@ -13,7 +14,7 @@ import { TrophyIcon } from './icons/TrophyIcon';
 interface VotePageProps {
   votes?: Vote[];
   ratings?: Vote[];
-  onVote: (voteId: string, optionId: number) => void;
+  onVote: (voteId: string, optionId: string) => void;
   onRatePlayers: (voteId: string, ratings: { [playerId: number]: { rating: number; comment: string | null; }; }) => void;
 }
 

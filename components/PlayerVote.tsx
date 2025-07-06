@@ -5,7 +5,7 @@ import { Card } from './ui/Card';
 
 interface PlayerVoteProps {
   vote: Vote;
-  onVote: (optionId: number) => void;
+  onVote: (optionId: string) => void;
 }
 
 const PlayerVote: React.FC<PlayerVoteProps> = ({ vote, onVote }) => {

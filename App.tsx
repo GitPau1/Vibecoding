@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Vote, Quiz, NewQuizQuestion, VoteKind, Player, VoteOption } from './types';
@@ -62,7 +63,10 @@ const AppContent: React.FC = () => {
       // Fetch votes and ratings
       const { data: voteData, error: voteError } = await supabase!
         .from('votes')
-        .select(`*, options:vote_options(*)`)
+        .select(`
+          id, title, description, type, image_url, end_date, players,
+          options:vote_options(id, label, votes, rating_count, comments)
+        `)
         .order('created_at', { ascending: false });
 
       if (voteError) throw voteError;
@@ -71,8 +75,20 @@ const AppContent: React.FC = () => {
       const userRatings = JSON.parse(localStorage.getItem('userRatings') || '{}');
 
       const allVotes: Vote[] = voteData.map((v: any) => ({
-        ...v,
+        id: v.id,
+        title: v.title,
+        description: v.description,
+        type: v.type,
+        endDate: v.end_date,
         imageUrl: v.image_url,
+        players: v.players,
+        options: v.options.map((o: any) => ({
+          id: o.id,
+          label: o.label,
+          votes: o.votes,
+          ratingCount: o.rating_count,
+          comments: o.comments,
+        })),
         userVote: userVotes[v.id],
         userRatings: userRatings[v.id],
       }));
@@ -90,12 +106,19 @@ const AppContent: React.FC = () => {
       
       // Map Supabase response to application types
       const formattedQuizzes: Quiz[] = quizData.map((q: any) => ({
-        ...q,
+        id: q.id,
+        title: q.title,
+        description: q.description,
         imageUrl: q.image_url,
         questions: q.questions.map((question: any) => ({
-            ...question,
+            id: question.id,
+            text: question.text,
             imageUrl: question.image_url,
-            correctOptionId: question.correct_option_id_temp, 
+            correctOptionId: question.correct_option_id_temp,
+            options: question.options.map((opt: any) => ({
+              id: opt.id,
+              text: opt.text,
+            })),
         }))
       }));
       setQuizzes(formattedQuizzes);
@@ -113,7 +136,7 @@ const AppContent: React.FC = () => {
     window.scrollTo(0, 0);
   }, [location.pathname, fetchAllData]);
 
-  const handleVote = useCallback(async (voteId: string, optionId: number) => {
+  const handleVote = useCallback(async (voteId: string, optionId: string) => {
     const vote = votes.find(v => v.id === voteId);
     if (!vote) return;
     
@@ -159,7 +182,7 @@ const AppContent: React.FC = () => {
       prevRatings.map(rating => {
         if (rating.id === ratingId) {
           const newOptions = rating.options.map(option => {
-            const playerRatingData = playerRatings[option.id];
+            const playerRatingData = playerRatings[option.id as any]; // player.id is number, option.id is string from db. Local-only logic has mismatch.
             if (playerRatingData) {
               return {
                 ...option,
@@ -230,7 +253,7 @@ const AppContent: React.FC = () => {
         ...newRatingData,
         id: String(Date.now()),
         options: newRatingData.players!.map(p => ({
-            id: p.id,
+            id: String(p.id),
             label: p.name,
             votes: 0,
             ratingCount: 0,
@@ -255,10 +278,10 @@ const AppContent: React.FC = () => {
           id: `q${Date.now()}`,
           questions: newQuizData.questions.map((q, qIndex) => ({
               ...q,
-              id: qIndex + 1,
+              id: String(qIndex + 1),
               options: q.options.map((o, oIndex) => ({
                   ...o,
-                  id: oIndex + 1,
+                  id: String(oIndex + 1),
               }))
           }))
       };

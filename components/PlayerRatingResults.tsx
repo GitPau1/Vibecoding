@@ -26,7 +26,7 @@ const PlayerRatingResults: React.FC<PlayerRatingResultsProps> = ({ vote }) => {
         const ratings: { [id: number]: { avg: number, count: number } } = {};
         vote.options.forEach(opt => {
             if (opt.ratingCount && opt.ratingCount > 0) {
-                ratings[opt.id] = {
+                ratings[Number(opt.id)] = {
                     avg: opt.votes / opt.ratingCount,
                     count: opt.ratingCount
                 };
@@ -42,7 +42,7 @@ const PlayerRatingResults: React.FC<PlayerRatingResultsProps> = ({ vote }) => {
     const groupedComments = useMemo(() => {
         const commentsByPlayer: { [playerName: string]: string[] } = {};
         vote.options.forEach(option => {
-            const player = vote.players?.find(p => p.id === option.id);
+            const player = vote.players?.find(p => p.id === Number(option.id));
             if (player && option.comments && option.comments.length > 0) {
                  if (!commentsByPlayer[player.name]) {
                     commentsByPlayer[player.name] = [];

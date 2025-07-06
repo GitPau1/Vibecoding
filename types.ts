@@ -1,3 +1,4 @@
+
 export enum VoteKind {
   MATCH = '경기 결과 예측',
   PLAYER = '베스트 플레이어',
@@ -6,7 +7,7 @@ export enum VoteKind {
 }
 
 export interface VoteOption {
-  id: number;
+  id: string;
   label: string;
   votes: number;
   ratingCount?: number;
@@ -29,19 +30,19 @@ export interface Vote {
   imageUrl?: string;
   options: VoteOption[];
   endDate: string;
-  userVote?: number; // The id of the option the user voted for
+  userVote?: string; // The id of the option the user voted for
   userRatings?: { [key: number]: { rating: number; comment: string | null } };
   players?: Player[];
 }
 
 // New Quiz Types
 export interface QuizQuestionOption {
-  id: number;
+  id: string;
   text: string;
 }
 
 export interface QuizQuestion {
-  id: number;
+  id: string;
   text: string;
   options: QuizQuestionOption[];
   correctOptionId: number;
