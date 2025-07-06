@@ -38,13 +38,13 @@ const VoteCard: React.FC<VoteCardProps> = ({ vote }) => {
 
   return (
     <Card 
-        className="flex flex-col h-full hover:shadow-lg transition-shadow duration-300 cursor-pointer overflow-hidden"
+        className="flex flex-col h-full hover:shadow-lg transition-shadow duration-300 cursor-pointer"
         onClick={handleSelectVote}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleSelectVote()}
     >
-        <ImageWithFallback src={vote.imageUrl} alt={vote.title} className="w-full h-40 object-cover" />
+        <ImageWithFallback src={vote.imageUrl} alt={vote.title} className="w-full h-40 object-cover rounded-t-2xl" />
         <div className="p-6 flex-grow">
             <div className="flex justify-between items-start mb-2">
                 <span className="text-xs font-semibold bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">{vote.type}</span>

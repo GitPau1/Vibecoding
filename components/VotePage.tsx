@@ -1,5 +1,4 @@
 
-
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Vote, VoteKind, VoteOption } from '../types';
@@ -81,8 +80,8 @@ const VotePage: React.FC<VotePageProps> = ({ votes, ratings, onVote, onRatePlaye
 
   return (
     <div className="max-w-4xl mx-auto">
-      <Card className="overflow-hidden">
-        <ImageWithFallback src={vote.imageUrl} alt={vote.title} className="w-full h-56 md:h-64 lg:h-72 object-cover" />
+      <Card>
+        <ImageWithFallback src={vote.imageUrl} alt={vote.title} className="w-full h-56 md:h-64 lg:h-72 object-cover rounded-t-2xl" />
         <div className="p-6 md:p-8">
           <span className="text-sm font-semibold text-[#6366f1]">{vote.type}</span>
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mt-2">{vote.title}</h2>

@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Quiz } from '../types';
@@ -118,8 +117,8 @@ const QuizPage: React.FC<QuizPageProps> = ({ quizzes }) => {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <Card className="overflow-hidden">
-        <ImageWithFallback src={currentQuestion.imageUrl} alt={`Question ${currentQuestionIndex + 1}`} className="w-full h-56 md:h-64 object-cover" />
+      <Card>
+        <ImageWithFallback src={currentQuestion.imageUrl || quiz.imageUrl} alt={`Question ${currentQuestionIndex + 1}`} className="w-full h-56 md:h-64 object-cover rounded-t-2xl" />
         <div className="p-6 md:p-8">
           <div className="flex justify-between items-center text-sm mb-2">
               <span className="font-semibold text-[#6366f1]">문제 {currentQuestionIndex + 1}/{totalQuestions}</span>

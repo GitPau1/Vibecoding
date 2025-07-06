@@ -46,8 +46,8 @@ const ArticlePage: React.FC<ArticlePageProps> = ({ articles, onRecommend, onView
 
   return (
     <div className="max-w-4xl mx-auto">
-      <Card className="overflow-hidden">
-        <ImageWithFallback src={article.imageUrl} alt={article.title} className="w-full h-56 md:h-72 object-cover" />
+      <Card>
+        <ImageWithFallback src={article.imageUrl} alt={article.title} className="w-full h-56 md:h-72 object-cover rounded-t-2xl" />
         <div className="p-6 md:p-8">
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mt-2">{article.title}</h2>
           <div className="mt-3 flex items-center space-x-4 text-sm text-gray-500">

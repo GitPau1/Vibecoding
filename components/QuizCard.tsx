@@ -18,13 +18,13 @@ const QuizCard: React.FC<QuizCardProps> = ({ quiz }) => {
 
   return (
     <Card 
-        className="flex flex-col h-full hover:shadow-lg transition-shadow duration-300 cursor-pointer overflow-hidden"
+        className="flex flex-col h-full hover:shadow-lg transition-shadow duration-300 cursor-pointer"
         onClick={handleSelectQuiz}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleSelectQuiz()}
     >
-        <ImageWithFallback src={quiz.imageUrl} alt={quiz.title} className="w-full h-40 object-cover" />
+        <ImageWithFallback src={quiz.imageUrl} alt={quiz.title} className="w-full h-40 object-cover rounded-t-2xl" />
         <div className="p-6 flex-grow">
             <div className="flex justify-between items-start mb-2">
                 <span className="text-xs font-semibold bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">퀴즈</span>

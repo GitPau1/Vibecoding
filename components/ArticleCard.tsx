@@ -22,13 +22,13 @@ const ArticleCard: React.FC<ArticleCardProps> = ({ article }) => {
 
   return (
     <Card 
-        className="flex flex-col h-full hover:shadow-lg transition-shadow duration-300 cursor-pointer overflow-hidden"
+        className="flex flex-col h-full hover:shadow-lg transition-shadow duration-300 cursor-pointer"
         onClick={handleSelectArticle}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleSelectArticle()}
     >
-        <ImageWithFallback src={article.imageUrl} alt={article.title} className="w-full h-40 object-cover" />
+        <ImageWithFallback src={article.imageUrl} alt={article.title} className="w-full h-40 object-cover rounded-t-2xl" />
         <div className="p-6 flex-grow">
             <div className="flex justify-between items-start mb-2">
                 <span className="text-xs font-semibold bg-green-100 text-green-700 px-2 py-1 rounded-full">아티클</span>

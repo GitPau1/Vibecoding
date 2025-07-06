@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeftIcon } from './icons/ChevronLeftIcon';
@@ -21,7 +19,7 @@ interface CarouselProps {
 const Carousel: React.FC<CarouselProps> = ({ items }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const navigate = useNavigate();
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const resetTimeout = useCallback(() => {
     if (timeoutRef.current) {
