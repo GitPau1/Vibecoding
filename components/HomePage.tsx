@@ -1,22 +1,49 @@
-import React, { useState } from 'react';
-import { Vote, Quiz } from '../types';
+
+import React, { useState, useMemo } from 'react';
+import { Vote, Quiz, Article } from '../types';
 import VoteCard from './VoteCard';
 import QuizCard from './QuizCard';
+import ArticleCard from './ArticleCard';
+import Carousel from './Carousel';
 
 interface HomePageProps {
   votes: Vote[];
   ratings: Vote[];
   quizzes: Quiz[];
+  articles: Article[];
   loading: boolean;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, loading }) => {
-  const [activeTab, setActiveTab] = useState<'votes' | 'ratings' | 'quizzes'>('votes');
+type CarouselItem = {
+  id: string;
+  title: string;
+  imageUrl?: string;
+  path: string;
+  createdAt: string;
+}
+
+const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, articles, loading }) => {
+  const [activeTab, setActiveTab] = useState<'votes' | 'ratings' | 'quizzes' | 'articles'>('votes');
 
   const now = new Date();
   const ongoingVotes = votes.filter(vote => new Date(vote.endDate) >= now).sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
   const finishedVotes = votes.filter(vote => new Date(vote.endDate) < now).sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime());
   const sortedRatings = ratings.sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime());
+  const sortedArticles = articles.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const recentItems: CarouselItem[] = useMemo(() => {
+    const allContent = [
+        ...votes.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/vote/${item.id}` })),
+        ...ratings.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/rating/${item.id}` })),
+        ...quizzes.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/quiz/${item.id}` })),
+        ...articles.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/article/${item.id}` }))
+    ];
+    return allContent
+        .filter(item => item.createdAt)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 5);
+  }, [votes, ratings, quizzes, articles]);
+
 
   const getTabClassName = (tabName: typeof activeTab) => {
     return `w-full text-center px-4 py-2.5 rounded-full transition-all duration-300 font-medium text-base ${
@@ -44,13 +71,18 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, loading })
         ))}
       </div>
   );
+  
+  const CarouselSkeleton = () => (
+    <div className="carousel-container bg-gray-200 animate-pulse"></div>
+  );
 
   return (
     <div className="space-y-8">
-      <div className="text-center md:text-left">
-        <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight">오늘의 캐슬인포</h2>
-        <p className="text-gray-500 mt-2">다양한 투표와 퀴즈에 참여해보세요!</p>
-      </div>
+      {loading ? (
+        <CarouselSkeleton />
+      ) : (
+        recentItems.length > 0 && <Carousel items={recentItems} />
+      )}
       
       {/* Tab Navigation */}
       <div className="p-1.5 bg-gray-100 rounded-full w-full">
@@ -72,6 +104,12 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, loading })
             className={getTabClassName('quizzes')}
           >
             퀴즈
+          </button>
+          <button
+            onClick={() => setActiveTab('articles')}
+            className={getTabClassName('articles')}
+          >
+            아티클
           </button>
         </nav>
       </div>
@@ -142,6 +180,24 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, loading })
                   <div className="text-center py-12 px-6 bg-gray-100 rounded-2xl">
                     <p className="text-gray-500">현재 등록된 퀴즈가 없습니다.</p>
                     <p className="text-sm text-gray-400 mt-2">새로운 퀴즈를 직접 만들어보세요!</p>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {activeTab === 'articles' && (
+              <section>
+                 <h3 className="text-2xl font-bold text-gray-900 mb-4">최신 아티클</h3>
+                {sortedArticles.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {sortedArticles.map(article => (
+                      <ArticleCard key={article.id} article={article} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 px-6 bg-gray-100 rounded-2xl">
+                    <p className="text-gray-500">현재 등록된 아티클이 없습니다.</p>
+                    <p className="text-sm text-gray-400 mt-2">새로운 아티클을 직접 만들어보세요!</p>
                   </div>
                 )}
               </section>

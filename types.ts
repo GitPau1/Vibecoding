@@ -30,6 +30,7 @@ export interface Vote {
   imageUrl?: string;
   options: VoteOption[];
   endDate: string;
+  createdAt: string;
   userVote?: string; // The id of the option the user voted for
   userRatings?: { [key: number]: { rating: number; comment: string | null } };
   players?: Player[];
@@ -59,4 +60,16 @@ export interface Quiz {
   description: string;
   imageUrl?: string;
   questions: QuizQuestion[];
+  createdAt: string;
+}
+
+// New Article Type
+export interface Article {
+  id: string;
+  createdAt: string;
+  title: string;
+  body: string;
+  imageUrl?: string;
+  recommendations: number;
+  userRecommended?: boolean;
 }

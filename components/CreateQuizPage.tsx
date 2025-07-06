@@ -1,15 +1,16 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Quiz, NewQuizQuestion } from '../types';
+import { NewQuizQuestion } from '../types';
 import { Card } from './ui/Card';
 import { Input } from './ui/Input';
 import { Button } from './ui/Button';
 import { PlusIcon } from './icons/PlusIcon';
 import { useToast } from '../contexts/ToastContext';
+import { QuizCreationData } from '../App';
 
 interface CreateQuizPageProps {
-  onCreateQuiz: (quizData: Omit<Quiz, 'id' | 'questions'> & { questions: NewQuizQuestion[] }) => void;
+  onCreateQuiz: (quizData: QuizCreationData) => void;
 }
 
 const CreateQuizPage: React.FC<CreateQuizPageProps> = ({ onCreateQuiz }) => {

@@ -1,6 +1,5 @@
 
 import { createClient } from '@supabase/supabase-js';
-import { Player } from '../types';
 
 export type Json =
   | string
@@ -8,11 +7,37 @@ export type Json =
   | boolean
   | null
   | { [key: string]: Json | undefined }
-  | Json[];
+  | Json[]
 
 export type Database = {
   public: {
     Tables: {
+      articles: {
+        Row: {
+          id: string
+          created_at: string
+          title: string
+          body: string
+          image_url: string | null
+          recommendations: number
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          title: string
+          body: string
+          image_url?: string | null
+          recommendations?: number
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          title?: string
+          body?: string
+          image_url?: string | null
+          recommendations?: number
+        }
+      }
       bug_reports: {
         Row: {
           id: string
@@ -110,7 +135,7 @@ export type Database = {
       }
       vote_options: {
         Row: {
-          comments: Json | null
+          comments: string[] | null
           created_at: string
           id: string
           label: string
@@ -119,7 +144,7 @@ export type Database = {
           votes: number
         }
         Insert: {
-          comments?: Json | null
+          comments?: string[] | null
           created_at?: string
           id?: string
           label: string
@@ -128,7 +153,7 @@ export type Database = {
           votes?: number
         }
         Update: {
-          comments?: Json | null
+          comments?: string[] | null
           created_at?: string
           id?: string
           label?: string
@@ -174,6 +199,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      increment_recommendation: {
+        Args: {
+          article_id_to_inc: string
+        }
+        Returns: undefined
+      }
       increment_vote: {
         Args: {
           option_id_to_inc: string
@@ -226,6 +257,21 @@ if (!supabase) {
 -- Note: Enable RLS (Row Level Security) for all tables and define policies.
 -- For this public voting app, we allow public read access. For writes, you could
 -- require users to be authenticated, or leave it open if it's a low-risk app.
+
+-- ARTICLES TABLE
+CREATE TABLE articles (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  title text NOT NULL,
+  body text NOT NULL,
+  image_url text,
+  recommendations integer DEFAULT 0 NOT NULL
+);
+ALTER TABLE articles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read access on articles" ON articles FOR SELECT USING (true);
+CREATE POLICY "Allow anon insert on articles" ON articles FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow anon update on articles" ON articles FOR UPDATE USING (true) WITH CHECK (true);
+
 
 -- VOTES & RATINGS TABLE
 CREATE TABLE votes (
@@ -309,7 +355,7 @@ CREATE POLICY "Allow anon insert on bug_reports" ON bug_reports FOR INSERT WITH 
 CREATE POLICY "Allow public read access on bug_reports" ON bug_reports FOR SELECT USING (true);
 
 
--- 2. Create RPC function to increment votes atomically
+-- 2. Create RPC functions to increment votes/recommendations atomically
 -- This prevents race conditions where two users vote at the same time.
 CREATE OR REPLACE FUNCTION increment_vote(option_id_to_inc uuid)
 RETURNS void
@@ -320,6 +366,18 @@ BEGIN
   UPDATE public.vote_options
   SET votes = votes + 1
   WHERE id = option_id_to_inc;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION increment_recommendation(article_id_to_inc uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE public.articles
+  SET recommendations = recommendations + 1
+  WHERE id = article_id_to_inc;
 END;
 $$;
 

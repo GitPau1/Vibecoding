@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { Vote, Quiz, NewQuizQuestion, VoteKind, Player, VoteOption } from './types';
+import { Vote, Quiz, NewQuizQuestion, VoteKind, Player, Article } from './types';
 import Header from './components/Header';
 import HomePage from './components/HomePage';
 import VotePage from './components/VotePage';
@@ -12,18 +12,28 @@ import CreateRatingPage from './components/CreateRatingPage';
 import QuizPage from './components/QuizPage';
 import { ToastProvider, useToast } from './contexts/ToastContext';
 import { supabase } from './lib/supabaseClient';
-import { MOCK_VOTES, MOCK_RATINGS, MOCK_QUIZZES } from './constants';
+import { MOCK_VOTES, MOCK_RATINGS, MOCK_QUIZZES, MOCK_ARTICLES } from './constants';
 import { BugIcon } from './components/icons/BugIcon';
 import BugReportPage from './components/BugReportPage';
+import ArticlePage from './components/ArticlePage';
+import CreateArticlePage from './components/CreateArticlePage';
 
 export interface VoteCreationData extends Pick<Vote, 'title' | 'description' | 'type' | 'endDate' | 'imageUrl' | 'players'> {
   options: {label: string}[];
 }
 
+export type ArticleCreationData = Omit<Article, 'id' | 'createdAt' | 'recommendations' | 'userRecommended'>;
+
+export type QuizCreationData = Omit<Quiz, 'id' | 'createdAt' | 'questions'> & {
+  questions: NewQuizQuestion[];
+};
+
+
 const AppContent: React.FC = () => {
   const [votes, setVotes] = useState<Vote[]>([]);
   const [ratings, setRatings] = useState<Vote[]>([]);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
@@ -36,14 +46,14 @@ const AppContent: React.FC = () => {
     try {
       setLoading(true);
       
+      // Fetch Votes & Ratings
       const { data: voteData, error: voteError } = await supabase!
         .from('votes')
         .select(`
-          id, title, description, type, image_url, end_date, players,
+          id, title, description, type, image_url, end_date, created_at, players,
           options:vote_options(id, label, votes, rating_count, comments)
         `)
         .order('created_at', { ascending: false });
-
       if (voteError) throw voteError;
 
       const userVotes = JSON.parse(localStorage.getItem('userVotes') || '{}');
@@ -55,6 +65,7 @@ const AppContent: React.FC = () => {
         description: v.description,
         type: v.type,
         endDate: v.end_date,
+        createdAt: v.created_at,
         imageUrl: v.image_url,
         players: v.players as Player[] | null,
         options: v.options.map((o: any) => ({
@@ -67,15 +78,14 @@ const AppContent: React.FC = () => {
         userVote: userVotes[v.id],
         userRatings: userRatings[v.id],
       }));
-      
       setVotes(allVotes.filter(v => v.type !== VoteKind.RATING));
       setRatings(allVotes.filter(v => v.type === VoteKind.RATING));
 
+      // Fetch Quizzes
       const { data: quizData, error: quizError } = await supabase!
         .from('quizzes')
         .select(`*, questions:quiz_questions(*, options:quiz_question_options(*))`)
         .order('created_at', { ascending: false });
-
       if (quizError) throw quizError;
       
       const formattedQuizzes: Quiz[] = quizData.map((q: any) => ({
@@ -83,18 +93,35 @@ const AppContent: React.FC = () => {
         title: q.title,
         description: q.description,
         imageUrl: q.image_url,
+        createdAt: q.created_at,
         questions: q.questions.map((question: any) => ({
             id: question.id,
             text: question.text,
             imageUrl: question.image_url,
             correctOptionId: question.correct_option_id_temp,
-            options: question.options.map((opt: any) => ({
-              id: opt.id,
-              text: opt.text,
-            })),
+            options: question.options.map((opt: any) => ({ id: opt.id, text: opt.text })),
         }))
       }));
       setQuizzes(formattedQuizzes);
+
+      // Fetch Articles
+      const { data: articleData, error: articleError } = await supabase!
+        .from('articles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (articleError) throw articleError;
+
+      const userRecommendedArticles = JSON.parse(localStorage.getItem('userRecommendedArticles') || '{}');
+      const formattedArticles: Article[] = articleData.map((a: any) => ({
+        id: a.id,
+        createdAt: a.created_at,
+        title: a.title,
+        body: a.body,
+        imageUrl: a.image_url,
+        recommendations: a.recommendations,
+        userRecommended: !!userRecommendedArticles[a.id],
+      }));
+      setArticles(formattedArticles);
 
     } catch (error: any) {
       console.error('Error fetching data:', error);
@@ -105,20 +132,28 @@ const AppContent: React.FC = () => {
   }, [addToast, isLocalMode]);
   
   useEffect(() => {
-    window.scrollTo(0, 0);
-    if (isLocalMode) {
-      setLoading(true);
-      // Deep copy to prevent mutation of constant data
-      const userVotes = JSON.parse(localStorage.getItem('userVotes') || '{}');
-      const userRatings = JSON.parse(localStorage.getItem('userRatings') || '{}');
+    const isInitialLoad = !votes.length && !ratings.length && !quizzes.length && !articles.length;
 
-      setVotes(JSON.parse(JSON.stringify(MOCK_VOTES)).map((v: Vote) => ({ ...v, userVote: userVotes[v.id] })));
-      setRatings(JSON.parse(JSON.stringify(MOCK_RATINGS)).map((r: Vote) => ({ ...r, userRatings: userRatings[r.id] })));
-      setQuizzes(JSON.parse(JSON.stringify(MOCK_QUIZZES)));
-      setLoading(false);
-    } else {
+    if (isLocalMode) {
+      if(isInitialLoad) {
+        setLoading(true);
+        // Deep copy to prevent mutation of constant data
+        const userVotes = JSON.parse(localStorage.getItem('userVotes') || '{}');
+        const userRatings = JSON.parse(localStorage.getItem('userRatings') || '{}');
+        const userRecommendedArticles = JSON.parse(localStorage.getItem('userRecommendedArticles') || '{}');
+  
+        setVotes(JSON.parse(JSON.stringify(MOCK_VOTES)).map((v: Vote) => ({ ...v, userVote: userVotes[v.id] })));
+        setRatings(JSON.parse(JSON.stringify(MOCK_RATINGS)).map((r: Vote) => ({ ...r, userRatings: userRatings[r.id] })));
+        setQuizzes(JSON.parse(JSON.stringify(MOCK_QUIZZES)));
+        setArticles(JSON.parse(JSON.stringify(MOCK_ARTICLES)).map((a: Article) => ({ ...a, userRecommended: !!userRecommendedArticles[a.id] })));
+        setLoading(false);
+      }
+    } else if (isInitialLoad) {
       fetchAllData();
     }
+    
+    window.scrollTo(0, 0);
+
   }, [isLocalMode, location.pathname, fetchAllData]);
 
   useEffect(() => {
@@ -198,7 +233,6 @@ const AppContent: React.FC = () => {
       return;
     }
     
-    // Supabase logic
     try {
         const rating = ratings.find(r => r.id === ratingId);
         if (!rating) throw new Error("Rating not found");
@@ -226,19 +260,24 @@ const AppContent: React.FC = () => {
   }, [addToast, ratings, isLocalMode]);
 
   const handleCreateVote = useCallback(async (newVoteData: VoteCreationData) => {
+    const commonLogic = (newVote: Vote) => {
+        setVotes(prev => [newVote, ...prev]);
+        navigate('/');
+        addToast('투표가 성공적으로 생성되었습니다.', 'success');
+    };
+
     if (isLocalMode) {
         const voteToAdd: Vote = {
             ...newVoteData,
             id: `mock-vote-${Date.now()}`,
+            createdAt: new Date().toISOString(),
             options: newVoteData.options.map((o, i) => ({
                 id: `mock-opt-${Date.now()}-${i}`,
                 label: o.label,
                 votes: 0,
             })),
         };
-        setVotes(prev => [voteToAdd, ...prev]);
-        navigate('/');
-        addToast('투표가 성공적으로 생성되었습니다 (로컬).', 'success');
+        commonLogic(voteToAdd);
         return;
     }
 
@@ -265,19 +304,30 @@ const AppContent: React.FC = () => {
         const { error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert);
         if (optionsError) throw optionsError;
 
-        addToast('투표가 성공적으로 생성되었습니다.', 'success');
-        await fetchAllData();
-        navigate('/');
+        const newVoteWithDetails: Vote = {
+            id: vote.id,
+            ...newVoteData,
+            createdAt: vote.created_at,
+            options: newVoteData.options.map((o, i) => ({ ...o, id: `new-opt-${i}`, votes: 0 })),
+        }
+        commonLogic(newVoteWithDetails);
     } catch (error: any) {
         addToast(`투표 생성 실패: ${error.message}`, 'error');
     }
-  }, [navigate, addToast, fetchAllData, isLocalMode]);
+  }, [navigate, addToast, isLocalMode]);
 
   const handleCreateRating = useCallback(async (newRatingData: VoteCreationData) => {
-     const createLocalRating = () => {
+     const commonLogic = (newRating: Vote) => {
+        setRatings(prev => [newRating, ...prev]);
+        navigate('/');
+        addToast('선수 평점이 성공적으로 생성되었습니다.', 'success');
+    };
+
+    if (isLocalMode) {
         const ratingToAdd: Vote = {
             ...newRatingData,
             id: `mock-rating-${Date.now()}`,
+            createdAt: new Date().toISOString(),
             options: newRatingData.players!.map(p => ({
                 id: String(p.id),
                 label: p.name,
@@ -286,14 +336,8 @@ const AppContent: React.FC = () => {
                 comments: [],
             })),
         };
-        setRatings(prevRatings => [ratingToAdd, ...prevRatings]);
-        navigate('/');
-        addToast('선수 평점이 성공적으로 생성되었습니다 (로컬).', 'success');
-    };
-
-    if (isLocalMode) {
-      createLocalRating();
-      return;
+        commonLogic(ratingToAdd);
+        return;
     }
 
     try {
@@ -311,25 +355,43 @@ const AppContent: React.FC = () => {
         const optionsToInsert = newRatingData.players!.map(p => ({
             vote_id: vote.id,
             label: p.name,
-            id: String(p.id) // Use player ID for option ID in ratings
+            id: String(p.id)
         }));
         
         const { error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert);
         if (optionsError) throw optionsError;
 
-        addToast('선수 평점이 성공적으로 생성되었습니다.', 'success');
-        await fetchAllData();
-        navigate('/');
+        const newRatingWithDetails: Vote = {
+            id: vote.id,
+            ...newRatingData,
+            createdAt: vote.created_at,
+            options: newRatingData.players!.map(p => ({
+                id: String(p.id),
+                label: p.name,
+                votes: 0,
+                ratingCount: 0,
+                comments: [],
+            })),
+        };
+        commonLogic(newRatingWithDetails);
+
     } catch (error: any) {
         addToast(`평점 생성 실패: ${error.message}`, 'error');
     }
-  }, [navigate, addToast, fetchAllData, isLocalMode]);
+  }, [navigate, addToast, isLocalMode]);
 
-  const handleCreateQuiz = useCallback(async (newQuizData: Omit<Quiz, 'id' | 'questions'> & { questions: NewQuizQuestion[] }) => {
-      const createLocalQuiz = () => {
+  const handleCreateQuiz = useCallback(async (newQuizData: QuizCreationData) => {
+      const commonLogic = (newQuiz: Quiz) => {
+        setQuizzes(prev => [newQuiz, ...prev]);
+        navigate('/');
+        addToast('퀴즈가 성공적으로 생성되었습니다.', 'success');
+      };
+
+      if (isLocalMode) {
         const newQuiz: Quiz = {
             ...newQuizData,
             id: `mock-q-${Date.now()}`,
+            createdAt: new Date().toISOString(),
             questions: newQuizData.questions.map((q, qIndex) => ({
                 ...q,
                 id: `mock-q-q${qIndex + 1}`,
@@ -339,13 +401,7 @@ const AppContent: React.FC = () => {
                 }))
             }))
         };
-        setQuizzes(prevQuizzes => [newQuiz, ...prevQuizzes]);
-        navigate('/');
-        addToast('퀴즈가 성공적으로 생성되었습니다 (로컬).', 'success');
-      };
-
-      if (isLocalMode) {
-        createLocalQuiz();
+        commonLogic(newQuiz);
         return;
       }
       
@@ -358,6 +414,7 @@ const AppContent: React.FC = () => {
         if (quizError) throw quizError;
         if (!quiz) throw new Error("Quiz creation failed");
 
+        const createdQuestions = [];
         for (const q of newQuizData.questions) {
             const { data: question, error: questionError } = await supabase!.from('quiz_questions').insert({
                 quiz_id: quiz.id,
@@ -372,18 +429,107 @@ const AppContent: React.FC = () => {
                 question_id: question.id,
                 text: opt.text,
             }));
-            const { error: optionsError } = await supabase!.from('quiz_question_options').insert(optionsToInsert);
+            const { data: optionsData, error: optionsError } = await supabase!.from('quiz_question_options').insert(optionsToInsert).select();
             if (optionsError) throw optionsError;
+            createdQuestions.push({ ...question, options: optionsData });
+        }
+        
+        const newQuizWithDetails: Quiz = {
+          id: quiz.id,
+          title: quiz.title,
+          description: quiz.description || '',
+          imageUrl: quiz.image_url || undefined,
+          createdAt: quiz.created_at,
+          questions: createdQuestions.map((q: any) => ({
+              id: q.id,
+              text: q.text,
+              imageUrl: q.image_url,
+              correctOptionId: q.correct_option_id_temp,
+              options: q.options.map((opt: any) => ({ id: opt.id, text: opt.text })),
+          }))
         }
 
-        addToast('퀴즈가 성공적으로 생성되었습니다.', 'success');
-        await fetchAllData();
-        navigate('/');
+        commonLogic(newQuizWithDetails);
       } catch (error: any) {
          addToast(`퀴즈 생성 실패: ${error.message}`, 'error');
       }
-  }, [navigate, addToast, fetchAllData, isLocalMode]);
+  }, [navigate, addToast, isLocalMode]);
 
+  const handleCreateArticle = useCallback(async (newArticleData: ArticleCreationData) => {
+    const commonLogic = (newArticle: Article) => {
+      setArticles(prev => [newArticle, ...prev]);
+      navigate('/');
+      addToast('아티클이 성공적으로 생성되었습니다.', 'success');
+    };
+
+    if (isLocalMode) {
+      const articleToAdd: Article = {
+        ...newArticleData,
+        id: `mock-article-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        recommendations: 0,
+        userRecommended: false,
+      };
+      commonLogic(articleToAdd);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase!.from('articles').insert({
+        title: newArticleData.title,
+        body: newArticleData.body,
+        image_url: newArticleData.imageUrl ?? null
+      }).select().single();
+      if (error) throw error;
+      
+      const newArticle: Article = {
+        id: data.id,
+        createdAt: data.created_at,
+        title: data.title,
+        body: data.body,
+        imageUrl: data.image_url || undefined,
+        recommendations: 0,
+        userRecommended: false
+      };
+
+      commonLogic(newArticle);
+    } catch (error: any) {
+      addToast(`아티클 생성 실패: ${error.message}`, 'error');
+    }
+
+  }, [isLocalMode, navigate, addToast]);
+
+  const handleRecommendArticle = useCallback(async (articleId: string) => {
+    const recommendedArticles = JSON.parse(localStorage.getItem('userRecommendedArticles') || '{}');
+    if (recommendedArticles[articleId]) {
+      addToast('이미 추천한 아티클입니다.', 'info');
+      return;
+    }
+    
+    const updateLocalState = () => {
+      setArticles(prev => prev.map(a =>
+        a.id === articleId
+          ? { ...a, recommendations: a.recommendations + 1, userRecommended: true }
+          : a
+      ));
+      recommendedArticles[articleId] = true;
+      localStorage.setItem('userRecommendedArticles', JSON.stringify(recommendedArticles));
+    };
+
+    if (isLocalMode) {
+      updateLocalState();
+      return;
+    }
+    
+    const { error } = await supabase!.rpc('increment_recommendation', { article_id_to_inc: articleId });
+    if (error) {
+      addToast(`추천 처리 중 오류가 발생했습니다: ${error.message}`, 'error');
+      return;
+    }
+    updateLocalState();
+
+  }, [addToast, isLocalMode]);
+  
   const handleCreateBugReport = useCallback(async ({ title, description, url, screenshotFile }: { title: string; description: string; url: string; screenshotFile: File | null; }) => {
     if (isLocalMode) {
       addToast('로컬 모드에서는 오류 제보를 할 수 없습니다.', 'error');
@@ -430,14 +576,16 @@ const AppContent: React.FC = () => {
       <Header />
       <main className="container mx-auto max-w-4xl p-4 sm:p-6 pb-24">
         <Routes>
-            <Route path="/" element={<HomePage votes={votes} ratings={ratings} quizzes={quizzes} loading={loading} />} />
+            <Route path="/" element={<HomePage votes={votes} ratings={ratings} quizzes={quizzes} articles={articles} loading={loading} />} />
             <Route path="/vote/:id" element={<VotePage votes={votes} onVote={handleVote} onRatePlayers={() => {}} />} />
             <Route path="/rating/:id" element={<VotePage ratings={ratings} onVote={() => {}} onRatePlayers={handlePlayerRatingSubmit} />} />
             <Route path="/quiz/:id" element={<QuizPage quizzes={quizzes} />} />
+            <Route path="/article/:id" element={<ArticlePage articles={articles} onRecommend={handleRecommendArticle} />} />
             <Route path="/create" element={<CreateHubPage />} />
             <Route path="/create/vote" element={<CreateVotePage onCreateVote={handleCreateVote} />} />
             <Route path="/create/rating" element={<CreateRatingPage onCreateRating={handleCreateRating} />} />
             <Route path="/create/quiz" element={<CreateQuizPage onCreateQuiz={handleCreateQuiz} />} />
+            <Route path="/create/article" element={<CreateArticlePage onCreateArticle={handleCreateArticle} />} />
             <Route path="/report-bug" element={<BugReportPage onSubmit={handleCreateBugReport} />} />
         </Routes>
       </main>

@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { VoteKind, Player } from '../types';
 import { VoteCreationData } from '../App';
@@ -16,7 +15,7 @@ interface PlayerInputsProps {
     minPlayers: number;
 }
 
-const PlayerInputs: React.FC<PlayerInputsProps> = ({ playerList, onPlayerChange, onRemovePlayer, minPlayers }) => (
+const PlayerInputs: React.FC<PlayerInputsProps> = React.memo(({ playerList, onPlayerChange, onRemovePlayer, minPlayers }) => (
     <>
         {playerList.map((player, index) => (
             <div key={index} className="p-4 border rounded-lg bg-gray-50/50 space-y-3 relative group">
@@ -29,7 +28,7 @@ const PlayerInputs: React.FC<PlayerInputsProps> = ({ playerList, onPlayerChange,
             </div>
         ))}
     </>
-);
+));
 
 interface CreateRatingPageProps {
   onCreateRating: (voteData: VoteCreationData) => void;
@@ -43,39 +42,38 @@ const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating }) =
   const { addToast } = useToast();
   
   const [starters, setStarters] = useState<{ name: string; team: string; photoUrl: string }[]>([
-    { name: '', team: '', photoUrl: '' }, { name: '', team: '', photoUrl: '' }, { name: '', team: '', photoUrl: '' },
-    { name: '', team: '', photoUrl: '' }, { name: '', team: '', photoUrl: '' }, { name: '', team: '', photoUrl: '' },
-    { name: '', team: '', photoUrl: '' }, { name: '', team: '', photoUrl: '' }, { name: '', team: '', photoUrl: '' },
-    { name: '', team: '', photoUrl: '' }, { name: '', team: '', photoUrl: '' },
+    ...Array(11).fill({ name: '', team: '', photoUrl: '' })
   ]);
   const [substitutes, setSubstitutes] = useState<{ name: string; team: string; photoUrl: string }[]>([]);
-
-  const handlePlayerListChange = (
-    list: typeof starters, setter: React.Dispatch<React.SetStateAction<typeof starters>>,
-    index: number, field: 'name' | 'team' | 'photoUrl', value: string
-  ) => {
-    const newList = list.map((player, i) => {
-        if (i === index) {
-            return { ...player, [field]: value };
-        }
-        return player;
+  
+  const createPlayerChangeHandler = (
+    setter: React.Dispatch<React.SetStateAction<{ name: string; team: string; photoUrl: string }[]>>
+  ) => useCallback((index: number, field: 'name' | 'team' | 'photoUrl', value: string) => {
+    setter(prevList => {
+      const newList = [...prevList];
+      newList[index] = { ...newList[index], [field]: value };
+      return newList;
     });
-    setter(newList);
-  };
+  }, [setter]);
 
-  const addPlayerToList = (setter: React.Dispatch<React.SetStateAction<typeof starters>>) => {
+  const handleStarterChange = createPlayerChangeHandler(setStarters);
+  const handleSubstituteChange = createPlayerChangeHandler(setSubstitutes);
+
+  const addPlayerToList = useCallback((setter: React.Dispatch<React.SetStateAction<typeof starters>>) => {
       setter(prev => [...prev, { name: '', team: '', photoUrl: '' }]);
-  };
+  }, []);
 
-  const removePlayerFromList = (
-    list: typeof starters, setter: React.Dispatch<React.SetStateAction<typeof starters>>,
+  const removePlayerFromList = useCallback((
+    setter: React.Dispatch<React.SetStateAction<typeof starters>>,
     index: number, minLength = 0
   ) => {
-    if (list.length > minLength) {
-      setter(list.filter((_, i) => i !== index));
-    }
-  };
-
+    setter(prevList => {
+        if (prevList.length > minLength) {
+            return prevList.filter((_, i) => i !== index);
+        }
+        return prevList;
+    });
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,8 +136,8 @@ const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating }) =
                 <div className="space-y-3">
                     <PlayerInputs 
                         playerList={starters}
-                        onPlayerChange={(index, field, value) => handlePlayerListChange(starters, setStarters, index, field, value)}
-                        onRemovePlayer={(index) => removePlayerFromList(starters, setStarters, index, 1)}
+                        onPlayerChange={handleStarterChange}
+                        onRemovePlayer={(index) => removePlayerFromList(setStarters, index, 1)}
                         minPlayers={1}
                     />
                     <Button type="button" variant="outline" onClick={() => addPlayerToList(setStarters)}>
@@ -152,8 +150,8 @@ const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating }) =
                 <div className="space-y-3">
                     <PlayerInputs 
                         playerList={substitutes}
-                        onPlayerChange={(index, field, value) => handlePlayerListChange(substitutes, setSubstitutes, index, field, value)}
-                        onRemovePlayer={(index) => removePlayerFromList(substitutes, setSubstitutes, index, 0)}
+                        onPlayerChange={handleSubstituteChange}
+                        onRemovePlayer={(index) => removePlayerFromList(setSubstitutes, index, 0)}
                         minPlayers={0}
                     />
                     <Button type="button" variant="outline" onClick={() => addPlayerToList(setSubstitutes)}>

@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Vote, VoteKind, Player } from '../types';
 import { VoteCreationData } from '../App';
@@ -16,7 +15,7 @@ interface PlayerInputsProps {
     onRemovePlayer: (index: number) => void;
 }
 
-const PlayerInputs: React.FC<PlayerInputsProps> = ({ playerList, onPlayerChange, onRemovePlayer }) => (
+const PlayerInputs: React.FC<PlayerInputsProps> = React.memo(({ playerList, onPlayerChange, onRemovePlayer }) => (
     <>
         {playerList.map((player, index) => (
             <div key={index} className="p-4 border rounded-lg bg-gray-50/50 space-y-3 relative group">
@@ -29,7 +28,7 @@ const PlayerInputs: React.FC<PlayerInputsProps> = ({ playerList, onPlayerChange,
             </div>
         ))}
     </>
-);
+));
 
 interface CreateVotePageProps {
   onCreateVote: (voteData: VoteCreationData) => void;
@@ -61,51 +60,47 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote }) => {
     }
   }, [type]);
 
-  const handleOptionChange = (index: number, value: string) => {
-    const newOptions = options.map((option, i) => {
-      if (i === index) {
-        return { ...option, label: value };
-      }
-      return option;
+  const handleOptionChange = useCallback((index: number, value: string) => {
+    setOptions(prevOptions => {
+        const newOptions = [...prevOptions];
+        newOptions[index] = { ...newOptions[index], label: value };
+        return newOptions;
     });
-    setOptions(newOptions);
-  };
+  }, []);
 
-  const addOption = () => {
+  const addOption = useCallback(() => {
       if(options.length < 10) {
-        setOptions([...options, { label: '' }]);
+        setOptions(prev => [...prev, { label: '' }]);
       }
-  };
+  }, [options.length]);
 
-  const removeOption = (index: number) => {
+  const removeOption = useCallback((index: number) => {
       if(options.length > 2) {
-        setOptions(options.filter((_, i) => i !== index));
+        setOptions(prev => prev.filter((_, i) => i !== index));
       }
-  };
+  }, [options.length]);
 
-  const handlePlayerListChange = (
+  const handlePlayerListChange = useCallback((
     index: number, field: 'name' | 'team' | 'photoUrl', value: string
   ) => {
-    const newList = players.map((player, i) => {
-      if (i === index) {
-        return { ...player, [field]: value };
-      }
-      return player;
+    setPlayers(prevPlayers => {
+        const newList = [...prevPlayers];
+        newList[index] = { ...newList[index], [field]: value };
+        return newList;
     });
-    setPlayers(newList);
-  };
+  }, []);
 
-  const addPlayerToList = () => {
+  const addPlayerToList = useCallback(() => {
     if (players.length < 25) {
-      setPlayers([...players, { name: '', team: '', photoUrl: '' }]);
+      setPlayers(prev => [...prev, { name: '', team: '', photoUrl: '' }]);
     }
-  };
+  }, [players.length]);
 
-  const removePlayerFromList = (index: number) => {
+  const removePlayerFromList = useCallback((index: number) => {
     if (players.length > 2) {
-      setPlayers(players.filter((_, i) => i !== index));
+      setPlayers(prev => prev.filter((_, i) => i !== index));
     }
-  };
+  }, [players.length]);
 
 
   const handleSubmit = (e: React.FormEvent) => {
