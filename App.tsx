@@ -17,6 +17,30 @@ export interface VoteCreationData extends Pick<Vote, 'title' | 'description' | '
   options: {label: string}[];
 }
 
+const SupabaseErrorComponent: React.FC = () => (
+   <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="text-center p-8 bg-white shadow-lg rounded-xl max-w-lg border-t-4 border-red-500">
+      <h2 className="text-2xl font-bold text-red-600 mb-4">Supabase 설정 오류</h2>
+      <p className="text-gray-700 mb-4">
+        Supabase 클라이언트를 초기화할 수 없습니다. 웹사이트가 데이터베이스에 연결되지 않았습니다.
+      </p>
+      <p className="text-gray-600 text-left">
+        이 문제를 해결하려면 프로젝트의 루트 디렉토리에 <code>.env</code> 파일을 생성하고 다음 내용을 추가해야 합니다:
+      </p>
+      <pre className="my-4 p-4 bg-gray-100 rounded-md text-left text-sm text-gray-800 overflow-x-auto">
+        <code>
+          REACT_APP_SUPABASE_URL=YOUR_SUPABASE_URL<br />
+          REACT_APP_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+        </code>
+      </pre>
+      <p className="text-sm text-gray-500 text-left">
+        <code>YOUR_SUPABASE_URL</code>과 <code>YOUR_SUPABASE_ANON_KEY</code>를 Supabase 프로젝트의 값으로 교체해주세요. 환경 변수를 설정한 후에는 애플리케이션을 다시 시작해야 합니다.
+      </p>
+    </div>
+  </div>
+);
+
+
 const AppContent: React.FC = () => {
   const [votes, setVotes] = useState<Vote[]>([]);
   const [ratings, setRatings] = useState<Vote[]>([]);
@@ -27,11 +51,12 @@ const AppContent: React.FC = () => {
   const { addToast } = useToast();
 
   const fetchAllData = useCallback(async () => {
+    // supabase is guaranteed non-null here
     try {
       setLoading(true);
       
       // Fetch votes and ratings
-      const { data: voteData, error: voteError } = await supabase
+      const { data: voteData, error: voteError } = await supabase!
         .from('votes')
         .select(`*, options:vote_options(*)`)
         .order('created_at', { ascending: false });
@@ -52,7 +77,7 @@ const AppContent: React.FC = () => {
       setRatings(allVotes.filter(v => v.type === VoteKind.RATING));
 
       // Fetch quizzes (example of nested fetching)
-      const { data: quizData, error: quizError } = await supabase
+      const { data: quizData, error: quizError } = await supabase!
         .from('quizzes')
         .select(`*, questions:quiz_questions(*, options:quiz_question_options(*))`)
         .order('created_at', { ascending: false });
@@ -66,9 +91,6 @@ const AppContent: React.FC = () => {
         questions: q.questions.map((question: any) => ({
             ...question,
             imageUrl: question.image_url,
-            // Assuming correctOptionId from DB is the real ID, but our app uses 1-based index.
-            // This part might need adjustment based on the final DB schema for correctOptionId.
-            // For now, we'll keep the logic simple.
             correctOptionId: question.correct_option_id_temp, 
         }))
       }));
@@ -95,7 +117,7 @@ const AppContent: React.FC = () => {
     if (!option) return;
 
     // 1. Call Supabase RPC to increment vote count
-    const { error } = await supabase.rpc('increment_vote', { option_id_to_inc: option.id });
+    const { error } = await supabase!.rpc('increment_vote', { option_id_to_inc: option.id });
     
     if (error) {
         addToast(`투표 처리 중 오류가 발생했습니다: ${error.message}`, 'error');
@@ -160,20 +182,23 @@ const AppContent: React.FC = () => {
   const handleCreateVote = useCallback(async (newVoteData: VoteCreationData) => {
     try {
         // 1. Insert into 'votes' table
-        const { data: vote, error: voteError } = await supabase
+        const { data: vote, error: voteError } = await supabase!
             .from('votes')
             .insert({
                 title: newVoteData.title,
-                description: newVoteData.description,
+                description: newVoteData.description ?? null,
                 type: newVoteData.type,
                 end_date: newVoteData.endDate,
-                image_url: newVoteData.imageUrl,
-                players: newVoteData.players,
-            })
+                image_url: newVoteData.imageUrl ?? null,
+                players: newVoteData.players ?? null,
+            } as any)
             .select()
             .single();
 
         if (voteError) throw voteError;
+        if (!vote) {
+            throw new Error("Vote creation failed, no data returned.");
+        }
 
         // 2. Insert into 'vote_options' table
         const optionsToInsert = newVoteData.options.map((opt) => ({
@@ -181,7 +206,7 @@ const AppContent: React.FC = () => {
             label: opt.label,
         }));
         
-        const { error: optionsError } = await supabase.from('vote_options').insert(optionsToInsert);
+        const { error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert as any);
         if (optionsError) throw optionsError;
 
         addToast('투표가 성공적으로 생성되었습니다.', 'success');
@@ -263,7 +288,7 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <ToastProvider>
-      <AppContent />
+      {supabase ? <AppContent /> : <SupabaseErrorComponent />}
     </ToastProvider>
   );
 };

@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { Player } from '../types';
 
@@ -117,7 +118,7 @@ export type Database = {
           end_date: string
           id: string
           image_url: string | null
-          players: Player[] | null
+          players: Json | null
           title: string
           type: string
         }
@@ -127,7 +128,7 @@ export type Database = {
           end_date: string
           id?: string
           image_url?: string | null
-          players?: Player[] | null
+          players?: Json | null
           title: string
           type: string
         }
@@ -137,7 +138,7 @@ export type Database = {
           end_date?: string
           id?: string
           image_url?: string | null
-          players?: Player[] | null
+          players?: Json | null
           title?: string
           type?: string
         }
@@ -163,19 +164,26 @@ export type Database = {
   }
 }
 
+// This application is a standard React setup, not a Next.js application.
+// In client-side React apps (like those created with Create React App),
+// environment variables must be prefixed with `REACT_APP_` to be exposed to the browser.
+// The `NEXT_PUBLIC_` prefix is specific to Next.js and will not work here.
+//
+// Please ensure you have a `.env` file in your project's root directory with the following:
+// REACT_APP_SUPABASE_URL=your-supabase-url
+// REACT_APP_SUPABASE_ANON_KEY=your-supabase-anon-key
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
-// As per the request, using NEXT_PUBLIC_ variables.
-// In a Vite/Create React App environment, these would typically be prefixed with REACT_APP_ or VITE_
-// e.g., import.meta.env.VITE_SUPABASE_URL
-// Ensure you have a .env file with these variables defined.
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// We initialize the client, but it will be null if the environment variables are missing.
+// The main App component will handle this case and display a message to the user.
+export const supabase = (supabaseUrl && supabaseAnonKey)
+  ? createClient<Database>(supabaseUrl, supabaseAnonKey)
+  : null;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error("Supabase URL and Anon Key are required. Please check your environment variables.");
+if (!supabase) {
+  console.warn("Supabase configuration is missing. The app will display an error message. Please set REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY in your environment.");
 }
-
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 
 /*
 -- REQUIRED SUPABASE SQL SETUP --
