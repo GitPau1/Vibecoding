@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState, useMemo } from 'react';
 import { Vote, Quiz, Article, XPost } from '../types';
 import VoteCard from './VoteCard';
@@ -33,9 +30,9 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, articles, 
   const now = new Date();
   const ongoingVotes = votes.filter(vote => new Date(vote.endDate) >= now).sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
   const finishedVotes = votes.filter(vote => new Date(vote.endDate) < now).sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime());
-  const sortedRatings = ratings.sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime());
-  const sortedArticles = articles.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  const sortedXPosts = xPosts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const sortedRatings = [...ratings].sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime());
+  const sortedArticles = [...articles].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const sortedXPosts = [...xPosts].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const recentItems: CarouselItem[] = useMemo(() => {
     const allContent = [
