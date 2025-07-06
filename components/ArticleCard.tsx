@@ -5,6 +5,7 @@ import { Article } from '../types';
 import { Card } from './ui/Card';
 import { ThumbsUpIcon } from './icons/ThumbsUpIcon';
 import { ImageWithFallback } from './ui/ImageWithFallback';
+import { EyeIcon } from './icons/EyeIcon';
 
 interface ArticleCardProps {
   article: Article;
@@ -38,9 +39,15 @@ const ArticleCard: React.FC<ArticleCardProps> = ({ article }) => {
         </div>
         <div className="border-t border-gray-200 px-6 py-3 bg-gray-50 rounded-b-2xl">
             <div className="flex justify-between items-center text-sm">
-                <div className="flex items-center text-gray-600">
-                    <ThumbsUpIcon className="w-4 h-4 mr-1.5" />
-                    <span>추천 {article.recommendations.toLocaleString()}</span>
+                <div className="flex items-center text-gray-600 space-x-4">
+                    <div className="flex items-center">
+                        <ThumbsUpIcon className="w-4 h-4 mr-1.5" />
+                        <span>추천 {article.recommendations.toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center">
+                        <EyeIcon className="w-4 h-4 mr-1.5" />
+                        <span>조회 {article.views.toLocaleString()}</span>
+                    </div>
                 </div>
                 <span className="font-semibold text-[#6366f1] hover:underline">
                     자세히 보기 →

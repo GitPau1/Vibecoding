@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeftIcon } from './icons/ChevronLeftIcon';
@@ -65,10 +66,16 @@ const Carousel: React.FC<CarouselProps> = ({ items }) => {
         style={{ transform: `translateX(-${currentIndex * 100}%)` }}
       >
         {items.map(item => (
-          <div key={item.id} className="carousel-slide" onClick={() => navigate(item.path)}>
+          <div key={item.id} className="carousel-slide" onClick={() => {
+            if (item.path.startsWith('http')) {
+                window.open(item.path, '_blank', 'noopener,noreferrer');
+            } else {
+                navigate(item.path);
+            }
+          }}>
             <ImageWithFallback src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" />
             <div className="overlay p-6 md:p-8 lg:p-10">
-              <h3 className="text-white text-2xl md:text-3xl lg:text-4xl font-extrabold leading-tight text-shadow-lg">{item.title}</h3>
+              <h3 className="text-white text-2xl md:text-3xl lg:text-4xl font-extrabold leading-tight text-shadow-lg line-clamp-3">{item.title}</h3>
             </div>
           </div>
         ))}

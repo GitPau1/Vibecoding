@@ -1,4 +1,5 @@
-import { Vote, VoteKind, Quiz, Player, Article } from './types';
+
+import { Vote, VoteKind, Quiz, Player, Article, XPost } from './types';
 
 export const MOCK_PLAYERS: Player[] = [
   { id: 1, name: '브루누 기마랑이스', team: '뉴캐슬 유나이티드', photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/659232-1675785723.jpg?lm=1', isStarter: true },
@@ -112,6 +113,7 @@ export const MOCK_ARTICLES: Article[] = [
     body: `<h2>세인트 제임스 파크의 지휘자</h2><p>브라질에서 온 마법사, <strong>브루누 기마랑이스</strong>는 뉴캐슬의 엔진 그 자체입니다. 그의 발끝에서 시작되는 날카로운 전진 패스, 지치지 않는 활동량, 그리고 상대의 공격을 끊어내는 영리한 수비까지, 그는 공수 양면에서 완벽한 모습을 보여주고 있습니다.</p><p>그가 있고 없고의 차이는 팀의 경기력에 직접적인 영향을 미칩니다. 팬들은 그를 '토탈 패키지'라 부르며, 그의 플레이 하나하나에 열광합니다. 과연 그는 뉴캐슬을 새로운 영광의 시대로 이끌 수 있을까요?</p>`,
     imageUrl: 'https://i2-prod.chroniclelive.co.uk/incoming/article28699741.ece/ALTERNATES/s1200c/0_GettyImages-2052445831.jpg',
     recommendations: 1152,
+    views: 12345,
   },
   {
     id: 'mock-article-2',
@@ -120,6 +122,22 @@ export const MOCK_ARTICLES: Article[] = [
     body: `<h3>90년대 낭만 축구의 아이콘</h3><p>케빈 키건 감독이 이끌던 1990년대 중반의 뉴캐슬은 '엔터테이너스(The Entertainers)'라는 별명으로 불렸습니다. 앨런 시어러, 레스 퍼디난드, 다비드 지놀라 등 화려한 공격진을 앞세운 그들의 축구는 팬들의 심장을 뛰게 했습니다.</p><p>비록 아쉽게 프리미어리그 우승컵을 들어 올리진 못했지만, 그들의 화끈한 공격 축구는 지금까지도 많은 팬들의 기억 속에 최고의 팀으로 남아있습니다. 그 시절의 낭만을 다시 한번 느껴봅니다.</p>`,
     imageUrl: 'https://cdn.themag.co.uk/wp-content/uploads/2022/01/27-Jan-1996-Middlesbrough-1-Newcastle-2.jpg',
     recommendations: 896,
+    views: 9876,
     userRecommended: true,
+  }
+];
+
+export const MOCK_X_POSTS: XPost[] = [
+  {
+    id: 'mock-x-post-1',
+    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+    description: '공식 발표: 뉴캐슬 유나이티드가 새로운 유망주 윙어와 5년 계약을 체결했습니다! 메디컬 테스트 완료 후 팀에 합류할 예정입니다.',
+    postUrl: 'https://x.com/FabrizioRomano/status/17988 Fabrizio Romano on X'
+  },
+  {
+    id: 'mock-x-post-2',
+    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+    description: '다음 주 챔피언스리그 경기를 앞두고 주장 키어런 트리피어가 훈련에 복귀했습니다. 팀에 큰 힘이 될 것입니다.',
+    postUrl: 'https://x.com/NUFC/status/1234567891'
   }
 ];

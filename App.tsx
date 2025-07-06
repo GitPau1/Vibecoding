@@ -1,8 +1,12 @@
 
 
+
+
+
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { Vote, Quiz, NewQuizQuestion, VoteKind, Player, Article } from './types';
+import { Vote, Quiz, NewQuizQuestion, VoteKind, Player, Article, XPost } from './types';
 import Header from './components/Header';
 import HomePage from './components/HomePage';
 import VotePage from './components/VotePage';
@@ -13,17 +17,19 @@ import CreateRatingPage from './components/CreateRatingPage';
 import QuizPage from './components/QuizPage';
 import { ToastProvider, useToast } from './contexts/ToastContext';
 import { supabase } from './lib/supabaseClient';
-import { MOCK_VOTES, MOCK_RATINGS, MOCK_QUIZZES, MOCK_ARTICLES } from './constants';
+import { MOCK_VOTES, MOCK_RATINGS, MOCK_QUIZZES, MOCK_ARTICLES, MOCK_X_POSTS } from './constants';
 import { BugIcon } from './components/icons/BugIcon';
 import BugReportPage from './components/BugReportPage';
 import ArticlePage from './components/ArticlePage';
 import CreateArticlePage from './components/CreateArticlePage';
+import CreateXPostPage from './components/CreateXPostPage';
 
 export interface VoteCreationData extends Pick<Vote, 'title' | 'description' | 'type' | 'endDate' | 'imageUrl' | 'players'> {
   options: {label: string}[];
 }
 
-export type ArticleCreationData = Omit<Article, 'id' | 'createdAt' | 'recommendations' | 'userRecommended'>;
+export type ArticleCreationData = Omit<Article, 'id' | 'createdAt' | 'recommendations' | 'userRecommended' | 'views'>;
+export type XPostCreationData = Omit<XPost, 'id' | 'createdAt'>;
 
 export type QuizCreationData = Omit<Quiz, 'id' | 'createdAt' | 'questions'> & {
   questions: NewQuizQuestion[];
@@ -35,6 +41,7 @@ const AppContent: React.FC = () => {
   const [ratings, setRatings] = useState<Vote[]>([]);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
+  const [xPosts, setXPosts] = useState<XPost[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
@@ -117,9 +124,22 @@ const AppContent: React.FC = () => {
         body: a.body,
         imageUrl: a.image_url,
         recommendations: a.recommendations,
+        views: a.views,
         userRecommended: !!userRecommendedArticles[a.id],
       }));
       setArticles(formattedArticles);
+      
+      const { data: xPostData, error: xPostError } = await supabase!
+        .from('x_posts')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (xPostError) throw xPostError;
+      setXPosts(xPostData.map((p: any) => ({
+        id: p.id,
+        createdAt: p.created_at,
+        description: p.description,
+        postUrl: p.post_url
+      })));
 
     } catch (error: any) {
       console.error('Error fetching data:', error);
@@ -130,7 +150,7 @@ const AppContent: React.FC = () => {
   }, [addToast, isLocalMode]);
   
   useEffect(() => {
-    const isInitialLoad = !votes.length && !ratings.length && !quizzes.length && !articles.length;
+    const isInitialLoad = !votes.length && !ratings.length && !quizzes.length && !articles.length && !xPosts.length;
 
     if (isLocalMode) {
       if(isInitialLoad) {
@@ -143,6 +163,7 @@ const AppContent: React.FC = () => {
         setRatings(JSON.parse(JSON.stringify(MOCK_RATINGS)).map((r: Vote) => ({ ...r, userRatings: userRatings[r.id] })));
         setQuizzes(JSON.parse(JSON.stringify(MOCK_QUIZZES)));
         setArticles(JSON.parse(JSON.stringify(MOCK_ARTICLES)).map((a: Article) => ({ ...a, userRecommended: !!userRecommendedArticles[a.id] })));
+        setXPosts(JSON.parse(JSON.stringify(MOCK_X_POSTS)));
         setLoading(false);
       }
     } else if (isInitialLoad) {
@@ -151,7 +172,7 @@ const AppContent: React.FC = () => {
     
     window.scrollTo(0, 0);
 
-  }, [isLocalMode, location.pathname, fetchAllData, votes.length, ratings.length, quizzes.length, articles.length]);
+  }, [isLocalMode, location.pathname, fetchAllData, votes.length, ratings.length, quizzes.length, articles.length, xPosts.length]);
 
   useEffect(() => {
     if (isLocalMode) {
@@ -201,7 +222,10 @@ const AppContent: React.FC = () => {
             prevRatings.map(rating => {
                 if (rating.id === ratingId) {
                     const newOptions = rating.options.map(option => {
-                        const playerRatingData = playerRatings[Number(option.id)];
+                        const player = rating.players?.find(p => p.name === option.label);
+                        if (!player) return option;
+
+                        const playerRatingData = playerRatings[player.id];
                         if (playerRatingData) {
                             return {
                                 ...option,
@@ -235,14 +259,17 @@ const AppContent: React.FC = () => {
         if (!rating) throw new Error("Rating not found");
 
         const updates = Object.entries(playerRatings).map(([playerId, data]) => {
-            const option = rating.options.find(o => o.id === playerId);
+            const player = rating.players?.find(p => p.id === Number(playerId));
+            if (!player) return null;
+            const option = rating.options.find(o => o.label === player.name);
             if (!option) return null;
+            
             const newComments = data.comment ? [...(option.comments || []), data.comment] : (option.comments || []);
 
             return supabase!.from('vote_options').update({
                 votes: option.votes + data.rating,
                 rating_count: (option.ratingCount || 0) + 1,
-                comments: newComments as any
+                comments: newComments
             }).eq('id', option.id);
         }).filter(Boolean);
 
@@ -287,7 +314,7 @@ const AppContent: React.FC = () => {
                 type: newVoteData.type,
                 end_date: newVoteData.endDate,
                 image_url: newVoteData.imageUrl ?? null,
-                players: newVoteData.players as any ?? null,
+                players: newVoteData.players ?? null,
             }).select().single();
 
         if (voteError) throw voteError;
@@ -343,7 +370,7 @@ const AppContent: React.FC = () => {
             description: newRatingData.description ?? null,
             type: VoteKind.RATING,
             end_date: newRatingData.endDate,
-            players: newRatingData.players as any ?? null,
+            players: newRatingData.players ?? null,
         }).select().single();
 
         if (voteError) throw voteError;
@@ -352,22 +379,22 @@ const AppContent: React.FC = () => {
         const optionsToInsert = newRatingData.players!.map(p => ({
             vote_id: vote.id,
             label: p.name,
-            id: String(p.id)
         }));
         
-        const { error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert);
+        const { data: insertedOptions, error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert).select();
         if (optionsError) throw optionsError;
+        if (!insertedOptions) throw new Error("Failed to get created options back");
 
         const newRatingWithDetails: Vote = {
             id: vote.id,
             ...newRatingData,
             createdAt: vote.created_at,
-            options: newRatingData.players!.map(p => ({
-                id: String(p.id),
-                label: p.name,
-                votes: 0,
-                ratingCount: 0,
-                comments: [],
+            options: insertedOptions.map(o => ({
+                id: o.id,
+                label: o.label,
+                votes: o.votes,
+                ratingCount: o.rating_count || 0,
+                comments: o.comments || [],
             })),
         };
         commonLogic(newRatingWithDetails);
@@ -465,6 +492,7 @@ const AppContent: React.FC = () => {
         id: `mock-article-${Date.now()}`,
         createdAt: new Date().toISOString(),
         recommendations: 0,
+        views: 0,
         userRecommended: false,
       };
       commonLogic(articleToAdd);
@@ -486,6 +514,7 @@ const AppContent: React.FC = () => {
         body: data.body,
         imageUrl: data.image_url || undefined,
         recommendations: 0,
+        views: 0,
         userRecommended: false
       };
 
@@ -526,6 +555,70 @@ const AppContent: React.FC = () => {
     updateLocalState();
 
   }, [addToast, isLocalMode]);
+
+  const handleViewArticle = useCallback(async (articleId: string) => {
+    const viewedArticles = JSON.parse(sessionStorage.getItem('viewedArticles') || '{}');
+    if (viewedArticles[articleId]) {
+      return; // Already viewed in this session
+    }
+
+    const updateLocalState = () => {
+      setArticles(prev => prev.map(a => 
+        a.id === articleId ? { ...a, views: (a.views || 0) + 1 } : a
+      ));
+      viewedArticles[articleId] = true;
+      sessionStorage.setItem('viewedArticles', JSON.stringify(viewedArticles));
+    };
+
+    if (isLocalMode) {
+      updateLocalState();
+      return;
+    }
+
+    const { error } = await supabase!.rpc('increment_article_view', { article_id_to_inc: articleId });
+    if (error) {
+      console.error(`Failed to increment view for article ${articleId}:`, error.message);
+    }
+    updateLocalState();
+  }, [isLocalMode]);
+
+  const handleCreateXPost = useCallback(async (newXPostData: XPostCreationData) => {
+    const commonLogic = (newPost: XPost) => {
+      setXPosts(prev => [newPost, ...prev]);
+      navigate('/');
+      addToast('최신 소식이 성공적으로 등록되었습니다.', 'success');
+    };
+
+    if (isLocalMode) {
+      const postToAdd: XPost = {
+        ...newXPostData,
+        id: `mock-x-post-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+      };
+      commonLogic(postToAdd);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase!.from('x_posts').insert({
+        description: newXPostData.description,
+        post_url: newXPostData.postUrl
+      }).select().single();
+
+      if (error) throw error;
+      
+      const newPost: XPost = {
+        id: data.id,
+        createdAt: data.created_at,
+        description: data.description,
+        postUrl: data.post_url,
+      };
+
+      commonLogic(newPost);
+    } catch (error: any) {
+      addToast(`소식 등록 실패: ${error.message}`, 'error');
+    }
+  }, [isLocalMode, navigate, addToast]);
   
   const handleCreateBugReport = useCallback(async ({ title, description, url, screenshotFile }: { title: string; description: string; url: string; screenshotFile: File | null; }) => {
     if (isLocalMode) {
@@ -573,16 +666,17 @@ const AppContent: React.FC = () => {
       <Header />
       <main className="container mx-auto p-4 sm:p-6 pb-24">
         <Routes>
-            <Route path="/" element={<HomePage votes={votes} ratings={ratings} quizzes={quizzes} articles={articles} loading={loading} />} />
+            <Route path="/" element={<HomePage votes={votes} ratings={ratings} quizzes={quizzes} articles={articles} xPosts={xPosts} loading={loading} />} />
             <Route path="/vote/:id" element={<VotePage votes={votes} onVote={handleVote} onRatePlayers={() => {}} />} />
             <Route path="/rating/:id" element={<VotePage ratings={ratings} onVote={() => {}} onRatePlayers={handlePlayerRatingSubmit} />} />
             <Route path="/quiz/:id" element={<QuizPage quizzes={quizzes} />} />
-            <Route path="/article/:id" element={<ArticlePage articles={articles} onRecommend={handleRecommendArticle} />} />
+            <Route path="/article/:id" element={<ArticlePage articles={articles} onRecommend={handleRecommendArticle} onView={handleViewArticle} />} />
             <Route path="/create" element={<CreateHubPage />} />
             <Route path="/create/vote" element={<CreateVotePage onCreateVote={handleCreateVote} />} />
             <Route path="/create/rating" element={<CreateRatingPage onCreateRating={handleCreateRating} />} />
             <Route path="/create/quiz" element={<CreateQuizPage onCreateQuiz={handleCreateQuiz} />} />
             <Route path="/create/article" element={<CreateArticlePage onCreateArticle={handleCreateArticle} />} />
+            <Route path="/create/x-post" element={<CreateXPostPage onCreateXPost={handleCreateXPost} />} />
             <Route path="/report-bug" element={<BugReportPage onSubmit={handleCreateBugReport} />} />
         </Routes>
       </main>

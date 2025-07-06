@@ -7,13 +7,15 @@ import { Button } from './ui/Button';
 import { ThumbsUpIcon } from './icons/ThumbsUpIcon';
 import { CalendarIcon } from './icons/CalendarIcon';
 import { ImageWithFallback } from './ui/ImageWithFallback';
+import { EyeIcon } from './icons/EyeIcon';
 
 interface ArticlePageProps {
   articles: Article[];
   onRecommend: (articleId: string) => void;
+  onView: (articleId: string) => void;
 }
 
-const ArticlePage: React.FC<ArticlePageProps> = ({ articles, onRecommend }) => {
+const ArticlePage: React.FC<ArticlePageProps> = ({ articles, onRecommend, onView }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -24,6 +26,13 @@ const ArticlePage: React.FC<ArticlePageProps> = ({ articles, onRecommend }) => {
       navigate('/', { replace: true });
     }
   }, [article, articles, navigate]);
+  
+  useEffect(() => {
+    if (article) {
+      onView(article.id);
+    }
+  }, [article, onView]);
+
 
   if (!article) {
     return null; // Or a loading indicator
@@ -49,6 +58,10 @@ const ArticlePage: React.FC<ArticlePageProps> = ({ articles, onRecommend }) => {
             <div className="flex items-center">
               <ThumbsUpIcon className="w-4 h-4 mr-1.5"/>
               <span>추천 {article.recommendations.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center">
+              <EyeIcon className="w-4 h-4 mr-1.5"/>
+              <span>조회 {article.views.toLocaleString()}</span>
             </div>
           </div>
         </div>

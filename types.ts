@@ -1,4 +1,5 @@
 
+
 export enum VoteKind {
   MATCH = '경기 결과 예측',
   PLAYER = '베스트 플레이어',
@@ -71,5 +72,14 @@ export interface Article {
   body: string;
   imageUrl?: string;
   recommendations: number;
+  views: number;
   userRecommended?: boolean;
+}
+
+// New XPost Type
+export interface XPost {
+  id: string;
+  createdAt: string;
+  description: string;
+  postUrl: string;
 }

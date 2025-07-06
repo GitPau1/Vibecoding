@@ -1,10 +1,13 @@
 
 
+
+
 import React, { useState, useMemo } from 'react';
-import { Vote, Quiz, Article } from '../types';
+import { Vote, Quiz, Article, XPost } from '../types';
 import VoteCard from './VoteCard';
 import QuizCard from './QuizCard';
 import ArticleCard from './ArticleCard';
+import XPostCard from './XPostCard';
 import Carousel from './Carousel';
 
 interface HomePageProps {
@@ -12,6 +15,7 @@ interface HomePageProps {
   ratings: Vote[];
   quizzes: Quiz[];
   articles: Article[];
+  xPosts: XPost[];
   loading: boolean;
 }
 
@@ -23,27 +27,29 @@ type CarouselItem = {
   createdAt: string;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, articles, loading }) => {
-  const [activeTab, setActiveTab] = useState<'votes' | 'ratings' | 'quizzes' | 'articles'>('votes');
+const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, articles, xPosts, loading }) => {
+  const [activeTab, setActiveTab] = useState<'votes' | 'ratings' | 'quizzes' | 'articles' | 'x-posts'>('votes');
 
   const now = new Date();
   const ongoingVotes = votes.filter(vote => new Date(vote.endDate) >= now).sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
   const finishedVotes = votes.filter(vote => new Date(vote.endDate) < now).sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime());
   const sortedRatings = ratings.sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime());
   const sortedArticles = articles.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const sortedXPosts = xPosts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const recentItems: CarouselItem[] = useMemo(() => {
     const allContent = [
         ...votes.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/vote/${item.id}` })),
         ...ratings.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/rating/${item.id}` })),
         ...quizzes.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/quiz/${item.id}` })),
-        ...articles.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/article/${item.id}` }))
+        ...articles.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/article/${item.id}` })),
+        ...xPosts.map(item => ({ id: item.id, title: item.description, imageUrl: undefined, createdAt: item.createdAt, path: item.postUrl }))
     ];
     return allContent
         .filter(item => item.createdAt)
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 5);
-  }, [votes, ratings, quizzes, articles]);
+  }, [votes, ratings, quizzes, articles, xPosts]);
 
 
   const getTabClassName = (tabName: typeof activeTab) => {
@@ -86,7 +92,7 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, articles, 
         recentItems.length > 0 && <Carousel items={recentItems} />
       )}
       
-      <div className="p-1.5 bg-gray-100 rounded-full w-full max-w-2xl mx-auto">
+      <div className="p-1.5 bg-gray-100 rounded-full w-full max-w-3xl mx-auto">
         <nav className="flex items-center space-x-1" aria-label="Tabs">
           <button
             onClick={() => setActiveTab('votes')}
@@ -111,6 +117,12 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, articles, 
             className={getTabClassName('articles')}
           >
             아티클
+          </button>
+          <button
+            onClick={() => setActiveTab('x-posts')}
+            className={getTabClassName('x-posts')}
+          >
+            최신 소식
           </button>
         </nav>
       </div>
@@ -198,6 +210,24 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, articles, 
                   <div className="text-center py-12 px-6 bg-gray-100 rounded-2xl">
                     <p className="text-gray-500">현재 등록된 아티클이 없습니다.</p>
                     <p className="text-sm text-gray-400 mt-2">새로운 아티클을 직접 만들어보세요!</p>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {activeTab === 'x-posts' && (
+              <section>
+                 <h3 className="text-2xl font-bold text-gray-900 mb-4 text-center">최신 소식</h3>
+                {sortedXPosts.length > 0 ? (
+                  <div className="max-w-2xl mx-auto space-y-6">
+                    {sortedXPosts.map(post => (
+                      <XPostCard key={post.id} post={post} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 px-6 bg-gray-100 rounded-2xl max-w-2xl mx-auto">
+                    <p className="text-gray-500">현재 등록된 소식이 없습니다.</p>
+                    <p className="text-sm text-gray-400 mt-2">새로운 소식을 직접 만들어보세요!</p>
                   </div>
                 )}
               </section>
