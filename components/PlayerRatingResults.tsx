@@ -25,38 +25,41 @@ const PlayerRatingResults: React.FC<PlayerRatingResultsProps> = ({ vote }) => {
     }, [vote.players]);
 
     const playerRatings = useMemo(() => {
-        const ratings: { [id: number]: { avg: number, count: number } } = {};
-        vote.options.forEach(opt => {
-            if (opt.ratingCount && opt.ratingCount > 0) {
-                ratings[Number(opt.id)] = {
-                    avg: opt.votes / opt.ratingCount,
-                    count: opt.ratingCount
+        const ratings: { [playerId: number]: { avg: number; count: number } } = {};
+        if (!vote.players) return ratings;
+        
+        vote.options.forEach(option => {
+            const player = vote.players.find(p => p.name === option.label);
+            if (player && option.ratingCount && option.ratingCount > 0) {
+                ratings[player.id] = {
+                    avg: option.votes / option.ratingCount,
+                    count: option.ratingCount
                 };
             }
         });
         return ratings;
-    }, [vote.options]);
+    }, [vote.options, vote.players]);
 
     const highestAvgRating = useMemo(() => {
         return Math.max(0, ...Object.values(playerRatings).map(r => r.avg));
     }, [playerRatings]);
     
     const groupedComments = useMemo(() => {
+        if (!vote.players) return [];
+
         const commentsByPlayer: { [playerName: string]: string[] } = {};
         vote.options.forEach(option => {
-            const player = vote.players?.find(p => p.id === Number(option.id));
-            if (player && option.comments && option.comments.length > 0) {
+            const player = vote.players.find(p => p.name === option.label);
+            if (player && option.comments && Array.isArray(option.comments) && option.comments.length > 0) {
                  if (!commentsByPlayer[player.name]) {
                     commentsByPlayer[player.name] = [];
                 }
-                // Add only non-empty comments
-                const validComments = option.comments.filter(c => c.trim() !== '');
+                const validComments = option.comments.filter(c => typeof c === 'string' && c.trim() !== '');
                 if(validComments.length > 0) {
                     commentsByPlayer[player.name].push(...validComments);
                 }
             }
         });
-        // Convert to array for stable rendering order and filter out players with no comments
         return Object.entries(commentsByPlayer)
             .map(([playerName, comments]) => ({
                 playerName,
@@ -70,7 +73,7 @@ const PlayerRatingResults: React.FC<PlayerRatingResultsProps> = ({ vote }) => {
     const PlayerResultRow: React.FC<{ player: Player }> = ({ player }) => {
         const ratingInfo = playerRatings[player.id];
         const userRating = vote.userRatings?.[player.id]?.rating;
-        const isHighest = ratingInfo && ratingInfo.avg.toFixed(2) === highestAvgRating.toFixed(2) && highestAvgRating > 0;
+        const isHighest = ratingInfo && ratingInfo.avg > 0 && ratingInfo.avg.toFixed(2) === highestAvgRating.toFixed(2);
 
 
         return (
