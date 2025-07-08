@@ -1,11 +1,3 @@
-
-
-
-
-
-
-
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Vote, Quiz, NewQuizQuestion, VoteKind, Player, Article, XPost, SquadPlayer, PlayerPosition } from './types';
@@ -18,7 +10,7 @@ import CreateQuizPage from './components/CreateQuizPage';
 import CreateRatingPage from './components/CreateRatingPage';
 import QuizPage from './components/QuizPage';
 import { ToastProvider, useToast } from './contexts/ToastContext';
-import { supabase } from './lib/supabaseClient';
+import { supabase, Database } from './lib/supabaseClient';
 import { MOCK_VOTES, MOCK_RATINGS, MOCK_QUIZZES, MOCK_ARTICLES, MOCK_X_POSTS, MOCK_SQUAD_PLAYERS } from './constants';
 import { BugIcon } from './components/icons/BugIcon';
 import BugReportPage from './components/BugReportPage';
@@ -297,7 +289,7 @@ const AppContent: React.FC = () => {
                 votes: option.votes + data.rating,
                 rating_count: (option.ratingCount || 0) + 1,
                 comments: newComments
-            } as any).eq('id', option.id);
+            }).eq('id', option.id);
         }).filter(Boolean);
 
         const results = await Promise.all(updates);
@@ -312,7 +304,7 @@ const AppContent: React.FC = () => {
 
   const handleCreateVote = useCallback(async (newVoteData: VoteCreationData) => {
     const commonLogic = (newVote: Vote) => {
-        setVotes(prev => [newVote, ...prev]);
+        setVotes((prev: Vote[]) => [newVote, ...prev]);
         navigate('/');
         addToast('투표가 성공적으로 생성되었습니다.', 'success');
     };
@@ -323,7 +315,7 @@ const AppContent: React.FC = () => {
             id: `mock-vote-${Date.now()}`,
             createdAt: new Date().toISOString(),
             options: newVoteData.options.map((o, i) => ({
-                id: `mock-opt-${Date.now()}-${i}`,
+                id: `new-opt-${i}`,
                 label: o.label,
                 votes: 0,
             })),
@@ -342,25 +334,36 @@ const AppContent: React.FC = () => {
                 end_date: newVoteData.endDate,
                 image_url: newVoteData.imageUrl ?? null,
                 players: newVoteData.players ?? null,
-            } as any).select().single();
+            }).select().single();
 
         if (voteError) throw voteError;
         if (!vote) throw new Error("Vote creation failed, no data returned.");
 
-        const optionsToInsert = newVoteData.options.map((opt) => ({
+        type VoteOptionInsert = Database['public']['Tables']['vote_options']['Insert'];
+        const optionsToInsert: VoteOptionInsert[] = newVoteData.options.map((opt) => ({
             vote_id: vote.id,
             label: opt.label,
         }));
         
-        const { error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert as any);
+        const { data: insertedOptions, error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert).select();
         if (optionsError) throw optionsError;
-
+        if (!insertedOptions) throw new Error("Could not retrieve created options.");
+        
         const newVoteWithDetails: Vote = {
             id: vote.id,
-            ...newVoteData,
             createdAt: vote.created_at,
-            options: newVoteData.options.map((o, i) => ({ ...o, id: `new-opt-${i}`, votes: 0 })),
-        }
+            title: newVoteData.title,
+            description: newVoteData.description,
+            type: newVoteData.type,
+            endDate: newVoteData.endDate,
+            imageUrl: newVoteData.imageUrl,
+            players: newVoteData.players,
+            options: insertedOptions.map(o => ({
+                id: o.id,
+                label: o.label,
+                votes: 0,
+            })),
+        };
         commonLogic(newVoteWithDetails);
     } catch (error: any) {
         addToast(`투표 생성 실패: ${error.message}`, 'error');
@@ -398,24 +401,30 @@ const AppContent: React.FC = () => {
             type: VoteKind.RATING,
             end_date: newRatingData.endDate,
             players: newRatingData.players ?? null,
-        } as any).select().single();
+        }).select().single();
 
         if (voteError) throw voteError;
         if (!vote) throw new Error("Rating creation failed");
 
-        const optionsToInsert = newRatingData.players!.map(p => ({
+        type VoteOptionInsert = Database['public']['Tables']['vote_options']['Insert'];
+        const optionsToInsert: VoteOptionInsert[] = newRatingData.players!.map(p => ({
             vote_id: vote.id,
             label: p.name,
         }));
         
-        const { data: insertedOptions, error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert as any).select();
+        const { data: insertedOptions, error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert).select();
         if (optionsError) throw optionsError;
         if (!insertedOptions) throw new Error("Failed to get created options back");
 
         const newRatingWithDetails: Vote = {
             id: vote.id,
-            ...newRatingData,
             createdAt: vote.created_at,
+            title: newRatingData.title,
+            description: newRatingData.description,
+            type: newRatingData.type,
+            endDate: newRatingData.endDate,
+            imageUrl: newRatingData.imageUrl,
+            players: newRatingData.players,
             options: insertedOptions.map(o => ({
                 id: o.id,
                 label: o.label,
@@ -461,7 +470,7 @@ const AppContent: React.FC = () => {
             title: newQuizData.title,
             description: newQuizData.description,
             image_url: newQuizData.imageUrl ?? null
-        } as any).select().single();
+        }).select().single();
         if (quizError) throw quizError;
         if (!quiz) throw new Error("Quiz creation failed");
 
@@ -472,15 +481,16 @@ const AppContent: React.FC = () => {
                 text: q.text,
                 image_url: q.imageUrl ?? null,
                 correct_option_id_temp: q.correctOptionId
-            } as any).select().single();
+            }).select().single();
             if (questionError) throw questionError;
             if (!question) throw new Error("Question creation failed");
             
-            const optionsToInsert = q.options.map(opt => ({
+            type QuizQuestionOptionInsert = Database['public']['Tables']['quiz_question_options']['Insert'];
+            const optionsToInsert: QuizQuestionOptionInsert[] = q.options.map(opt => ({
                 question_id: question.id,
                 text: opt.text,
             }));
-            const { data: optionsData, error: optionsError } = await supabase!.from('quiz_question_options').insert(optionsToInsert as any).select();
+            const { data: optionsData, error: optionsError } = await supabase!.from('quiz_question_options').insert(optionsToInsert).select();
             if (optionsError) throw optionsError;
             createdQuestions.push({ ...question, options: optionsData });
         }
@@ -531,7 +541,7 @@ const AppContent: React.FC = () => {
         title: newArticleData.title,
         body: newArticleData.body,
         image_url: newArticleData.imageUrl ?? null
-      } as any).select().single();
+      }).select().single();
       if (error) throw error;
       
       const newArticle: Article = {
@@ -611,7 +621,7 @@ const AppContent: React.FC = () => {
 
   const handleCreateXPost = useCallback(async (newXPostData: XPostCreationData) => {
     const commonLogic = (newPost: XPost) => {
-      setXPosts(prev => [newPost, ...prev]);
+      setXPosts((prev: XPost[]) => [newPost, ...prev]);
       navigate('/');
       addToast('최신 소식이 성공적으로 등록되었습니다.', 'success');
     };
@@ -630,7 +640,7 @@ const AppContent: React.FC = () => {
       const { data, error } = await supabase!.from('x_posts').insert({
         description: newXPostData.description,
         post_url: newXPostData.postUrl
-      } as any).select().single();
+      }).select().single();
 
       if (error) throw error;
       
@@ -675,7 +685,7 @@ const AppContent: React.FC = () => {
         description,
         url,
         screenshot_url
-      } as any);
+      });
 
       if (insertError) throw insertError;
 
@@ -706,10 +716,18 @@ const AppContent: React.FC = () => {
         number: playerData.number,
         position: playerData.position,
         photo_url: playerData.photoUrl,
-      } as any).select().single();
+      }).select().single();
 
       if (error) throw error;
-      setSquadPlayers(prev => [...prev, data as SquadPlayer].sort((a,b) => a.number - b.number));
+      const newPlayer: SquadPlayer = {
+        id: data.id,
+        createdAt: data.created_at,
+        name: data.name,
+        number: data.number,
+        position: data.position as PlayerPosition,
+        photoUrl: data.photo_url || undefined,
+      };
+      setSquadPlayers(prev => [...prev, newPlayer].sort((a,b) => a.number - b.number));
       addToast('선수가 추가되었습니다.', 'success');
     } catch (error: any) {
       addToast(`선수 추가 실패: ${error.message}`, 'error');
@@ -718,7 +736,7 @@ const AppContent: React.FC = () => {
 
   const handleUpdateSquadPlayer = useCallback(async (playerId: string, playerData: SquadPlayerCreationData) => {
      if (isLocalMode) {
-      setSquadPlayers(prev => prev.map(p => p.id === playerId ? { ...p, ...playerData } : p).sort((a,b) => a.number - b.number));
+      setSquadPlayers(prev => prev.map(p => p.id === playerId ? { ...p, ...playerData, id: playerId, createdAt: p.createdAt } : p).sort((a,b) => a.number - b.number));
       addToast('선수 정보가 수정되었습니다.', 'success');
       return;
     }
@@ -729,10 +747,18 @@ const AppContent: React.FC = () => {
         number: playerData.number,
         position: playerData.position,
         photo_url: playerData.photoUrl,
-      } as any).eq('id', playerId).select().single();
+      }).eq('id', playerId).select().single();
 
       if (error) throw error;
-      setSquadPlayers(prev => prev.map(p => p.id === playerId ? data as SquadPlayer : p).sort((a,b) => a.number - b.number));
+       const updatedPlayer: SquadPlayer = {
+        id: data.id,
+        createdAt: data.created_at,
+        name: data.name,
+        number: data.number,
+        position: data.position as PlayerPosition,
+        photoUrl: data.photo_url || undefined,
+      };
+      setSquadPlayers(prev => prev.map(p => p.id === playerId ? updatedPlayer : p).sort((a,b) => a.number - b.number));
       addToast('선수 정보가 수정되었습니다.', 'success');
     } catch (error: any) {
       addToast(`선수 정보 수정 실패: ${error.message}`, 'error');
