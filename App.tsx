@@ -4,9 +4,11 @@
 
 
 
+
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { Vote, Quiz, NewQuizQuestion, VoteKind, Player, Article, XPost } from './types';
+import { Vote, Quiz, NewQuizQuestion, VoteKind, Player, Article, XPost, SquadPlayer, PlayerPosition } from './types';
 import Header from './components/Header';
 import HomePage from './components/HomePage';
 import VotePage from './components/VotePage';
@@ -17,12 +19,13 @@ import CreateRatingPage from './components/CreateRatingPage';
 import QuizPage from './components/QuizPage';
 import { ToastProvider, useToast } from './contexts/ToastContext';
 import { supabase } from './lib/supabaseClient';
-import { MOCK_VOTES, MOCK_RATINGS, MOCK_QUIZZES, MOCK_ARTICLES, MOCK_X_POSTS } from './constants';
+import { MOCK_VOTES, MOCK_RATINGS, MOCK_QUIZZES, MOCK_ARTICLES, MOCK_X_POSTS, MOCK_SQUAD_PLAYERS } from './constants';
 import { BugIcon } from './components/icons/BugIcon';
 import BugReportPage from './components/BugReportPage';
 import ArticlePage from './components/ArticlePage';
 import CreateArticlePage from './components/CreateArticlePage';
 import CreateXPostPage from './components/CreateXPostPage';
+import SquadPage from './components/SquadPage';
 
 export interface VoteCreationData extends Pick<Vote, 'title' | 'description' | 'type' | 'endDate' | 'imageUrl' | 'players'> {
   options: {label: string}[];
@@ -35,6 +38,8 @@ export type QuizCreationData = Omit<Quiz, 'id' | 'createdAt' | 'questions'> & {
   questions: NewQuizQuestion[];
 };
 
+export type SquadPlayerCreationData = Omit<SquadPlayer, 'id' | 'createdAt'>;
+
 
 const AppContent: React.FC = () => {
   const [votes, setVotes] = useState<Vote[]>([]);
@@ -42,6 +47,7 @@ const AppContent: React.FC = () => {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
   const [xPosts, setXPosts] = useState<XPost[]>([]);
+  const [squadPlayers, setSquadPlayers] = useState<SquadPlayer[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
@@ -54,6 +60,7 @@ const AppContent: React.FC = () => {
     try {
       setLoading(true);
       
+      // Fetch votes and ratings
       const { data: voteData, error: voteError } = await supabase!
         .from('votes')
         .select(`
@@ -88,6 +95,7 @@ const AppContent: React.FC = () => {
       setVotes(allVotes.filter(v => v.type !== VoteKind.RATING));
       setRatings(allVotes.filter(v => v.type === VoteKind.RATING));
 
+      // Fetch quizzes
       const { data: quizData, error: quizError } = await supabase!
         .from('quizzes')
         .select(`*, questions:quiz_questions(*, options:quiz_question_options(*))`)
@@ -110,6 +118,7 @@ const AppContent: React.FC = () => {
       }));
       setQuizzes(formattedQuizzes);
 
+      // Fetch articles
       const { data: articleData, error: articleError } = await supabase!
         .from('articles')
         .select('*')
@@ -129,6 +138,7 @@ const AppContent: React.FC = () => {
       }));
       setArticles(formattedArticles);
       
+      // Fetch X posts
       const { data: xPostData, error: xPostError } = await supabase!
         .from('x_posts')
         .select('*')
@@ -141,6 +151,22 @@ const AppContent: React.FC = () => {
         postUrl: p.post_url
       })));
 
+      // Fetch squad players
+      const { data: squadData, error: squadError } = await supabase!
+        .from('squad_players')
+        .select('*')
+        .order('number', { ascending: true });
+      if (squadError) throw squadError;
+      setSquadPlayers(squadData.map((p: any) => ({
+        id: p.id,
+        createdAt: p.created_at,
+        name: p.name,
+        number: p.number,
+        position: p.position as PlayerPosition,
+        photoUrl: p.photo_url
+      })));
+
+
     } catch (error: any) {
       console.error('Error fetching data:', error);
       addToast(`데이터 로딩 오류: ${error.message}`, 'error');
@@ -150,7 +176,7 @@ const AppContent: React.FC = () => {
   }, [addToast, isLocalMode]);
   
   useEffect(() => {
-    const isInitialLoad = !votes.length && !ratings.length && !quizzes.length && !articles.length && !xPosts.length;
+    const isInitialLoad = !votes.length && !ratings.length && !quizzes.length && !articles.length && !xPosts.length && !squadPlayers.length;
 
     if (isLocalMode) {
       if(isInitialLoad) {
@@ -164,6 +190,7 @@ const AppContent: React.FC = () => {
         setQuizzes(JSON.parse(JSON.stringify(MOCK_QUIZZES)));
         setArticles(JSON.parse(JSON.stringify(MOCK_ARTICLES)).map((a: Article) => ({ ...a, userRecommended: !!userRecommendedArticles[a.id] })));
         setXPosts(JSON.parse(JSON.stringify(MOCK_X_POSTS)));
+        setSquadPlayers(JSON.parse(JSON.stringify(MOCK_SQUAD_PLAYERS)));
         setLoading(false);
       }
     } else if (isInitialLoad) {
@@ -172,7 +199,7 @@ const AppContent: React.FC = () => {
     
     window.scrollTo(0, 0);
 
-  }, [isLocalMode, location.pathname, fetchAllData, votes.length, ratings.length, quizzes.length, articles.length, xPosts.length]);
+  }, [isLocalMode, location.pathname, fetchAllData, votes.length, ratings.length, quizzes.length, articles.length, xPosts.length, squadPlayers.length]);
 
   useEffect(() => {
     if (isLocalMode) {
@@ -270,7 +297,7 @@ const AppContent: React.FC = () => {
                 votes: option.votes + data.rating,
                 rating_count: (option.ratingCount || 0) + 1,
                 comments: newComments
-            }).eq('id', option.id);
+            } as any).eq('id', option.id);
         }).filter(Boolean);
 
         const results = await Promise.all(updates);
@@ -315,7 +342,7 @@ const AppContent: React.FC = () => {
                 end_date: newVoteData.endDate,
                 image_url: newVoteData.imageUrl ?? null,
                 players: newVoteData.players ?? null,
-            }).select().single();
+            } as any).select().single();
 
         if (voteError) throw voteError;
         if (!vote) throw new Error("Vote creation failed, no data returned.");
@@ -325,7 +352,7 @@ const AppContent: React.FC = () => {
             label: opt.label,
         }));
         
-        const { error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert);
+        const { error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert as any);
         if (optionsError) throw optionsError;
 
         const newVoteWithDetails: Vote = {
@@ -371,7 +398,7 @@ const AppContent: React.FC = () => {
             type: VoteKind.RATING,
             end_date: newRatingData.endDate,
             players: newRatingData.players ?? null,
-        }).select().single();
+        } as any).select().single();
 
         if (voteError) throw voteError;
         if (!vote) throw new Error("Rating creation failed");
@@ -381,7 +408,7 @@ const AppContent: React.FC = () => {
             label: p.name,
         }));
         
-        const { data: insertedOptions, error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert).select();
+        const { data: insertedOptions, error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert as any).select();
         if (optionsError) throw optionsError;
         if (!insertedOptions) throw new Error("Failed to get created options back");
 
@@ -434,7 +461,7 @@ const AppContent: React.FC = () => {
             title: newQuizData.title,
             description: newQuizData.description,
             image_url: newQuizData.imageUrl ?? null
-        }).select().single();
+        } as any).select().single();
         if (quizError) throw quizError;
         if (!quiz) throw new Error("Quiz creation failed");
 
@@ -445,7 +472,7 @@ const AppContent: React.FC = () => {
                 text: q.text,
                 image_url: q.imageUrl ?? null,
                 correct_option_id_temp: q.correctOptionId
-            }).select().single();
+            } as any).select().single();
             if (questionError) throw questionError;
             if (!question) throw new Error("Question creation failed");
             
@@ -453,7 +480,7 @@ const AppContent: React.FC = () => {
                 question_id: question.id,
                 text: opt.text,
             }));
-            const { data: optionsData, error: optionsError } = await supabase!.from('quiz_question_options').insert(optionsToInsert).select();
+            const { data: optionsData, error: optionsError } = await supabase!.from('quiz_question_options').insert(optionsToInsert as any).select();
             if (optionsError) throw optionsError;
             createdQuestions.push({ ...question, options: optionsData });
         }
@@ -504,7 +531,7 @@ const AppContent: React.FC = () => {
         title: newArticleData.title,
         body: newArticleData.body,
         image_url: newArticleData.imageUrl ?? null
-      }).select().single();
+      } as any).select().single();
       if (error) throw error;
       
       const newArticle: Article = {
@@ -603,7 +630,7 @@ const AppContent: React.FC = () => {
       const { data, error } = await supabase!.from('x_posts').insert({
         description: newXPostData.description,
         post_url: newXPostData.postUrl
-      }).select().single();
+      } as any).select().single();
 
       if (error) throw error;
       
@@ -648,7 +675,7 @@ const AppContent: React.FC = () => {
         description,
         url,
         screenshot_url
-      });
+      } as any);
 
       if (insertError) throw insertError;
 
@@ -661,6 +688,74 @@ const AppContent: React.FC = () => {
     }
   }, [isLocalMode, addToast, navigate]);
 
+  const handleCreateSquadPlayer = useCallback(async (playerData: SquadPlayerCreationData) => {
+    if (isLocalMode) {
+      const newPlayer: SquadPlayer = {
+        ...playerData,
+        id: `sq-player-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+      };
+      setSquadPlayers(prev => [...prev, newPlayer].sort((a,b) => a.number - b.number));
+      addToast('선수가 추가되었습니다.', 'success');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase!.from('squad_players').insert({
+        name: playerData.name,
+        number: playerData.number,
+        position: playerData.position,
+        photo_url: playerData.photoUrl,
+      } as any).select().single();
+
+      if (error) throw error;
+      setSquadPlayers(prev => [...prev, data as SquadPlayer].sort((a,b) => a.number - b.number));
+      addToast('선수가 추가되었습니다.', 'success');
+    } catch (error: any) {
+      addToast(`선수 추가 실패: ${error.message}`, 'error');
+    }
+  }, [isLocalMode, addToast]);
+
+  const handleUpdateSquadPlayer = useCallback(async (playerId: string, playerData: SquadPlayerCreationData) => {
+     if (isLocalMode) {
+      setSquadPlayers(prev => prev.map(p => p.id === playerId ? { ...p, ...playerData } : p).sort((a,b) => a.number - b.number));
+      addToast('선수 정보가 수정되었습니다.', 'success');
+      return;
+    }
+    
+    try {
+      const { data, error } = await supabase!.from('squad_players').update({
+        name: playerData.name,
+        number: playerData.number,
+        position: playerData.position,
+        photo_url: playerData.photoUrl,
+      } as any).eq('id', playerId).select().single();
+
+      if (error) throw error;
+      setSquadPlayers(prev => prev.map(p => p.id === playerId ? data as SquadPlayer : p).sort((a,b) => a.number - b.number));
+      addToast('선수 정보가 수정되었습니다.', 'success');
+    } catch (error: any) {
+      addToast(`선수 정보 수정 실패: ${error.message}`, 'error');
+    }
+  }, [isLocalMode, addToast]);
+
+  const handleDeleteSquadPlayer = useCallback(async (playerId: string) => {
+     if (isLocalMode) {
+      setSquadPlayers(prev => prev.filter(p => p.id !== playerId));
+      addToast('선수가 삭제되었습니다.', 'success');
+      return;
+    }
+
+    try {
+      const { error } = await supabase!.from('squad_players').delete().eq('id', playerId);
+      if (error) throw error;
+      setSquadPlayers(prev => prev.filter(p => p.id !== playerId));
+      addToast('선수가 삭제되었습니다.', 'success');
+    } catch (error: any) {
+      addToast(`선수 삭제 실패: ${error.message}`, 'error');
+    }
+  }, [isLocalMode, addToast]);
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800">
       <Header />
@@ -672,12 +767,20 @@ const AppContent: React.FC = () => {
             <Route path="/quiz/:id" element={<QuizPage quizzes={quizzes} />} />
             <Route path="/article/:id" element={<ArticlePage articles={articles} onRecommend={handleRecommendArticle} onView={handleViewArticle} />} />
             <Route path="/create" element={<CreateHubPage />} />
-            <Route path="/create/vote" element={<CreateVotePage onCreateVote={handleCreateVote} />} />
-            <Route path="/create/rating" element={<CreateRatingPage onCreateRating={handleCreateRating} />} />
+            <Route path="/create/vote" element={<CreateVotePage onCreateVote={handleCreateVote} squadPlayers={squadPlayers} />} />
+            <Route path="/create/rating" element={<CreateRatingPage onCreateRating={handleCreateRating} squadPlayers={squadPlayers} />} />
             <Route path="/create/quiz" element={<CreateQuizPage onCreateQuiz={handleCreateQuiz} />} />
             <Route path="/create/article" element={<CreateArticlePage onCreateArticle={handleCreateArticle} />} />
             <Route path="/create/x-post" element={<CreateXPostPage onCreateXPost={handleCreateXPost} />} />
             <Route path="/report-bug" element={<BugReportPage onSubmit={handleCreateBugReport} />} />
+            <Route path="/squad" element={
+              <SquadPage 
+                players={squadPlayers}
+                onAddPlayer={handleCreateSquadPlayer}
+                onUpdatePlayer={handleUpdateSquadPlayer}
+                onDeletePlayer={handleDeleteSquadPlayer}
+              />
+            } />
         </Routes>
       </main>
       <button

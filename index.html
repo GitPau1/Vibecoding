@@ -293,6 +293,36 @@
         background-color: white;
         transform: scale(1.0);
       }
+      
+      /* Modal Styles */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(17, 24, 39, 0.6); /* gray-900/60 */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 40; /* Ensure it's above other content but below toast */
+        backdrop-filter: blur(4px);
+        opacity: 0;
+        animation: fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      }
+      @keyframes fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      .modal-content {
+        opacity: 0;
+        transform: scale(0.95) translateY(1rem);
+        animation: slide-up 0.3s cubic-bezier(0.4, 0, 0.2, 1) 0.1s forwards;
+      }
+      @keyframes slide-up {
+        from { opacity: 0; transform: scale(0.95) translateY(1rem); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+      }
     </style>
   <script type="importmap">
 {

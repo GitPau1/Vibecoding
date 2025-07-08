@@ -83,3 +83,20 @@ export interface XPost {
   description: string;
   postUrl: string;
 }
+
+// New Squad Types
+export enum PlayerPosition {
+  GK = '골키퍼',
+  DF = '수비수',
+  MF = '미드필더',
+  FW = '공격수',
+}
+
+export interface SquadPlayer {
+  id: string;
+  createdAt: string;
+  name: string;
+  number: number;
+  position: PlayerPosition;
+  photoUrl?: string;
+}

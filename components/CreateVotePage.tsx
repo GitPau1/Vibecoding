@@ -1,7 +1,8 @@
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Vote, VoteKind, Player } from '../types';
+import { Vote, VoteKind, Player, SquadPlayer } from '../types';
 import { VoteCreationData } from '../App';
 import { Card } from './ui/Card';
 import { Input } from './ui/Input';
@@ -10,6 +11,8 @@ import { Select } from './ui/Select';
 import { PlusIcon } from './icons/PlusIcon';
 import { useToast } from '../contexts/ToastContext';
 import { ImageWithFallback } from './ui/ImageWithFallback';
+import { UsersIcon } from './icons/UsersIcon';
+import LoadFromSquadModal from './LoadFromSquadModal';
 
 interface PlayerInputsProps {
     playerList: { name: string; team: string; photoUrl: string }[];
@@ -34,15 +37,17 @@ const PlayerInputs: React.FC<PlayerInputsProps> = React.memo(({ playerList, onPl
 
 interface CreateVotePageProps {
   onCreateVote: (voteData: VoteCreationData) => void;
+  squadPlayers: SquadPlayer[];
 }
 
-const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote }) => {
+const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote, squadPlayers }) => {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState<VoteKind>(VoteKind.TOPIC);
   const [endDate, setEndDate] = useState('');
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const { addToast } = useToast();
   
   // For Player type
@@ -103,6 +108,17 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote }) => {
       setPlayers(prev => prev.filter((_, i) => i !== index));
     }
   }, [players.length]);
+  
+  const handleLoadFromSquad = (selectedPlayers: SquadPlayer[]) => {
+    const newPlayers = selectedPlayers.map(p => ({
+      name: p.name,
+      team: p.position,
+      photoUrl: p.photoUrl || '',
+    }));
+    setPlayers(newPlayers);
+    setIsModalOpen(false);
+    addToast(`${selectedPlayers.length}명의 선수를 불러왔습니다.`, 'success');
+  };
 
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -148,7 +164,13 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote }) => {
       case VoteKind.PLAYER:
         return (
           <div className="space-y-4">
-            <p className="text-sm text-gray-600">투표할 선수 정보를 입력하세요. (최소 2명)</p>
+            <div className="flex justify-between items-center">
+                <p className="text-sm text-gray-600">투표할 선수 정보를 입력하세요. (최소 2명)</p>
+                <Button type="button" variant="outline" size="sm" onClick={() => setIsModalOpen(true)}>
+                    <UsersIcon className="w-4 h-4 mr-2" />
+                    스쿼드에서 불러오기
+                </Button>
+            </div>
             <PlayerInputs 
                 playerList={players}
                 onPlayerChange={handlePlayerListChange}
@@ -191,68 +213,78 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote }) => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <Card className="p-6 md:p-8">
-        <h2 className="text-2xl font-bold mb-6">새로운 투표 생성</h2>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">투표 제목</label>
-            <Input id="title" value={title} onChange={e => setTitle(e.target.value)} placeholder="예: 다음 경기 승리팀은?" required />
-          </div>
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">설명 (선택)</label>
-            <Input as="textarea" id="description" value={description} onChange={e => setDescription(e.target.value)} placeholder="투표에 대한 간단한 설명을 입력하세요." />
-          </div>
+    <>
+      {isModalOpen && (
+        <LoadFromSquadModal
+          squadPlayers={squadPlayers}
+          onClose={() => setIsModalOpen(false)}
+          onConfirm={handleLoadFromSquad}
+          mode="vote"
+        />
+      )}
+      <div className="max-w-4xl mx-auto">
+        <Card className="p-6 md:p-8">
+          <h2 className="text-2xl font-bold mb-6">새로운 투표 생성</h2>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">투표 제목</label>
+              <Input id="title" value={title} onChange={e => setTitle(e.target.value)} placeholder="예: 다음 경기 승리팀은?" required />
+            </div>
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">설명 (선택)</label>
+              <Input as="textarea" id="description" value={description} onChange={e => setDescription(e.target.value)} placeholder="투표에 대한 간단한 설명을 입력하세요." />
+            </div>
 
-          <div>
-            <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700 mb-1">대표 이미지 URL (선택)</label>
-            <Input
-              id="imageUrl"
-              value={imageUrl || ''}
-              onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="https://example.com/image.png"
-            />
-            {imageUrl && (
-              <div className="mt-4 text-center">
-                <ImageWithFallback src={imageUrl} alt="Preview" className="mx-auto h-32 w-auto object-cover rounded-md border" />
-                <button
-                  type="button"
-                  onClick={() => setImageUrl(undefined)}
-                  className="mt-2 text-sm font-medium text-red-600 hover:text-red-500"
-                >
-                  이미지 링크 삭제
-                </button>
-              </div>
-            )}
-          </div>
+            <div>
+              <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700 mb-1">대표 이미지 URL (선택)</label>
+              <Input
+                id="imageUrl"
+                value={imageUrl || ''}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="https://example.com/image.png"
+              />
+              {imageUrl && (
+                <div className="mt-4 text-center">
+                  <ImageWithFallback src={imageUrl} alt="Preview" className="mx-auto h-32 w-auto object-cover rounded-md border" />
+                  <button
+                    type="button"
+                    onClick={() => setImageUrl(undefined)}
+                    className="mt-2 text-sm font-medium text-red-600 hover:text-red-500"
+                  >
+                    이미지 링크 삭제
+                  </button>
+                </div>
+              )}
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">투표 종류</label>
-                <Select id="type" value={type} onChange={e => setType(e.target.value as VoteKind)}>
-                  {Object.values(VoteKind).filter(k => k !== VoteKind.RATING).map(t => <option key={t} value={t}>{t}</option>)}
-                </Select>
-              </div>
-              <div>
-                <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">마감일</label>
-                <Input id="endDate" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} required 
-                  min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0]}
-                />
-              </div>
-          </div>
-          
-          <div>
-              <h3 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">옵션 설정</h3>
-              {renderOptionFields()}
-          </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">투표 종류</label>
+                  <Select id="type" value={type} onChange={e => setType(e.target.value as VoteKind)}>
+                    {Object.values(VoteKind).filter(k => k !== VoteKind.RATING).map(t => <option key={t} value={t}>{t}</option>)}
+                  </Select>
+                </div>
+                <div>
+                  <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">마감일</label>
+                  <Input id="endDate" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} required 
+                    min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0]}
+                  />
+                </div>
+            </div>
+            
+            <div>
+                <h3 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">옵션 설정</h3>
+                {renderOptionFields()}
+            </div>
 
-          <div className="flex justify-end gap-4 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={() => navigate(-1)}>취소</Button>
-            <Button type="submit">투표 생성하기</Button>
-          </div>
-        </form>
-      </Card>
-    </div>
+            <div className="flex justify-end gap-4 pt-4 border-t">
+              <Button type="button" variant="outline" onClick={() => navigate(-1)}>취소</Button>
+              <Button type="submit">투표 생성하기</Button>
+            </div>
+          </form>
+        </Card>
+      </div>
+    </>
   );
 };
 

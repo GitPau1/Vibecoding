@@ -1,12 +1,14 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { VoteKind, Player } from '../types';
+import { VoteKind, Player, SquadPlayer } from '../types';
 import { VoteCreationData } from '../App';
 import { Card } from './ui/Card';
 import { Input } from './ui/Input';
 import { Button } from './ui/Button';
 import { PlusIcon } from './icons/PlusIcon';
 import { useToast } from '../contexts/ToastContext';
+import { UsersIcon } from './icons/UsersIcon';
+import LoadFromSquadModal from './LoadFromSquadModal';
 
 interface PlayerInputsProps {
     playerList: { name: string; team: string; photoUrl: string }[];
@@ -32,14 +34,16 @@ const PlayerInputs: React.FC<PlayerInputsProps> = React.memo(({ playerList, onPl
 
 interface CreateRatingPageProps {
   onCreateRating: (voteData: VoteCreationData) => void;
+  squadPlayers: SquadPlayer[];
 }
 
-const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating }) => {
+const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating, squadPlayers }) => {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [endDate, setEndDate] = useState(new Date().toISOString().split("T")[0]); // Default to today
   const { addToast } = useToast();
+  const [isModalOpen, setIsModalOpen] = useState(false);
   
   const [starters, setStarters] = useState<{ name: string; team: string; photoUrl: string }[]>([
     ...Array(11).fill({ name: '', team: '', photoUrl: '' })
@@ -74,6 +78,24 @@ const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating }) =
         return prevList;
     });
   }, []);
+
+  const handleLoadFromSquad = (loadedPlayers: {player: SquadPlayer, isStarter: boolean}[]) => {
+    const newStarters = loadedPlayers.filter(p => p.isStarter).map(p => ({
+        name: p.player.name,
+        team: p.player.position,
+        photoUrl: p.player.photoUrl || ''
+    }));
+    const newSubstitutes = loadedPlayers.filter(p => !p.isStarter).map(p => ({
+        name: p.player.name,
+        team: p.player.position,
+        photoUrl: p.player.photoUrl || ''
+    }));
+
+    setStarters(newStarters);
+    setSubstitutes(newSubstitutes);
+    setIsModalOpen(false);
+    addToast(`${loadedPlayers.length}명의 선수를 불러왔습니다.`, 'success');
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,65 +132,81 @@ const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating }) =
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <Card className="p-6 md:p-8">
-        <h2 className="text-2xl font-bold mb-1">선수 평점 생성</h2>
-        <p className="text-gray-500 mb-6">종료된 경기의 선수 평점을 생성하고 공유해보세요.</p>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">평점 제목</label>
-            <Input id="title" value={title} onChange={e => setTitle(e.target.value)} placeholder="예: 2026 월드컵 예선 중국전 선수 평점" required />
-          </div>
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">설명 (선택)</label>
-            <Input as="textarea" id="description" value={description} onChange={e => setDescription(e.target.value)} placeholder="평점에 대한 간단한 설명을 입력하세요." />
-          </div>
-          
-          <div>
-              <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">경기 날짜</label>
-              <Input id="endDate" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} required />
-              <p className="text-xs text-gray-500 mt-1">평점은 생성 즉시 시작됩니다. 경기 날짜를 선택해주세요.</p>
-          </div>
-          
-          <div className="space-y-6">
-              <h3 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">선수 명단 입력</h3>
-              <div>
-                  <h4 className="text-md font-semibold text-gray-700 mb-2">선발 선수 (최소 1명)</h4>
-                  <div className="space-y-3">
-                      <PlayerInputs 
-                          playerList={starters}
-                          onPlayerChange={handleStarterChange}
-                          onRemovePlayer={(index) => removePlayerFromList(setStarters, index, 1)}
-                          minPlayers={1}
-                      />
-                      <Button type="button" variant="outline" onClick={() => addPlayerToList(setStarters)}>
-                          <PlusIcon className="w-4 h-4 mr-2" /> 선발 선수 추가
-                      </Button>
-                  </div>
-              </div>
-              <div>
-                  <h4 className="text-md font-semibold text-gray-700 mb-2">교체 선수 (선택)</h4>
-                  <div className="space-y-3">
-                      <PlayerInputs 
-                          playerList={substitutes}
-                          onPlayerChange={handleSubstituteChange}
-                          onRemovePlayer={(index) => removePlayerFromList(setSubstitutes, index, 0)}
-                          minPlayers={0}
-                      />
-                      <Button type="button" variant="outline" onClick={() => addPlayerToList(setSubstitutes)}>
-                          <PlusIcon className="w-4 h-4 mr-2" /> 교체 선수 추가
-                      </Button>
-                  </div>
-              </div>
-          </div>
+    <>
+      {isModalOpen && (
+        <LoadFromSquadModal
+          squadPlayers={squadPlayers}
+          onClose={() => setIsModalOpen(false)}
+          onConfirm={handleLoadFromSquad}
+          mode="rating"
+        />
+      )}
+      <div className="max-w-4xl mx-auto">
+        <Card className="p-6 md:p-8">
+          <h2 className="text-2xl font-bold mb-1">선수 평점 생성</h2>
+          <p className="text-gray-500 mb-6">종료된 경기의 선수 평점을 생성하고 공유해보세요.</p>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">평점 제목</label>
+              <Input id="title" value={title} onChange={e => setTitle(e.target.value)} placeholder="예: 2026 월드컵 예선 중국전 선수 평점" required />
+            </div>
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">설명 (선택)</label>
+              <Input as="textarea" id="description" value={description} onChange={e => setDescription(e.target.value)} placeholder="평점에 대한 간단한 설명을 입력하세요." />
+            </div>
+            
+            <div>
+                <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">경기 날짜</label>
+                <Input id="endDate" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} required />
+                <p className="text-xs text-gray-500 mt-1">평점은 생성 즉시 시작됩니다. 경기 날짜를 선택해주세요.</p>
+            </div>
+            
+            <div className="space-y-6">
+                <div className="flex justify-between items-center border-b pb-2 mb-4">
+                  <h3 className="text-lg font-semibold text-gray-800">선수 명단 입력</h3>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setIsModalOpen(true)}>
+                      <UsersIcon className="w-4 h-4 mr-2" />
+                      스쿼드에서 불러오기
+                  </Button>
+                </div>
+                <div>
+                    <h4 className="text-md font-semibold text-gray-700 mb-2">선발 선수 (최소 1명)</h4>
+                    <div className="space-y-3">
+                        <PlayerInputs 
+                            playerList={starters}
+                            onPlayerChange={handleStarterChange}
+                            onRemovePlayer={(index) => removePlayerFromList(setStarters, index, 1)}
+                            minPlayers={1}
+                        />
+                        <Button type="button" variant="outline" onClick={() => addPlayerToList(setStarters)}>
+                            <PlusIcon className="w-4 h-4 mr-2" /> 선발 선수 추가
+                        </Button>
+                    </div>
+                </div>
+                <div>
+                    <h4 className="text-md font-semibold text-gray-700 mb-2">교체 선수 (선택)</h4>
+                    <div className="space-y-3">
+                        <PlayerInputs 
+                            playerList={substitutes}
+                            onPlayerChange={handleSubstituteChange}
+                            onRemovePlayer={(index) => removePlayerFromList(setSubstitutes, index, 0)}
+                            minPlayers={0}
+                        />
+                        <Button type="button" variant="outline" onClick={() => addPlayerToList(setSubstitutes)}>
+                            <PlusIcon className="w-4 h-4 mr-2" /> 교체 선수 추가
+                        </Button>
+                    </div>
+                </div>
+            </div>
 
-          <div className="flex justify-end gap-4 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={() => navigate(-1)}>취소</Button>
-            <Button type="submit">평점 생성하기</Button>
-          </div>
-        </form>
-      </Card>
-    </div>
+            <div className="flex justify-end gap-4 pt-4 border-t">
+              <Button type="button" variant="outline" onClick={() => navigate(-1)}>취소</Button>
+              <Button type="submit">평점 생성하기</Button>
+            </div>
+          </form>
+        </Card>
+      </div>
+    </>
   );
 };
 

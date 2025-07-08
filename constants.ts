@@ -1,5 +1,6 @@
 
-import { Vote, VoteKind, Quiz, Player, Article, XPost } from './types';
+
+import { Vote, VoteKind, Quiz, Player, Article, XPost, SquadPlayer, PlayerPosition } from './types';
 
 export const MOCK_PLAYERS: Player[] = [
   { id: 1, name: '브루누 기마랑이스', team: '뉴캐슬 유나이티드', photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/659232-1675785723.jpg?lm=1', isStarter: true },
@@ -15,6 +16,22 @@ export const MOCK_PLAYERS: Player[] = [
   { id: 11, name: '칼럼 윌슨', team: '뉴캐슬 유나이티드', photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/158013-1698305634.jpg?lm=1', isStarter: true },
   { id: 12, name: '하비 반스', team: '뉴캐슬 유나이티드', photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/331320-1688648174.jpg?lm=1', isStarter: false },
   { id: 13, name: '조 윌록', team: '뉴캐슬 유나이티드', photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/340329-1698305658.jpg?lm=1', isStarter: false },
+];
+
+export const MOCK_SQUAD_PLAYERS: SquadPlayer[] = [
+  { id: 'sq-8', createdAt: new Date().toISOString(), name: '닉 포프', number: 22, position: PlayerPosition.GK, photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/192931-1698305540.jpg?lm=1' },
+  { id: 'sq-3', createdAt: new Date().toISOString(), name: '스벤 보트만', number: 4, position: PlayerPosition.DF, photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/339193-1698305141.jpg?lm=1' },
+  { id: 'sq-4', createdAt: new Date().toISOString(), name: '키어런 트리피어', number: 2, position: PlayerPosition.DF, photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/95992-1698305608.jpg?lm=1' },
+  { id: 'sq-9', createdAt: new Date().toISOString(), name: '파비안 셰어', number: 5, position: PlayerPosition.DF, photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/135343-1698305576.jpg?lm=1' },
+  { id: 'sq-1', createdAt: new Date().toISOString(), name: '브루누 기마랑이스', number: 39, position: PlayerPosition.MF, photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/659232-1675785723.jpg?lm=1' },
+  { id: 'sq-5', createdAt: new Date().toISOString(), name: '조엘린통', number: 7, position: PlayerPosition.MF, photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/348392-1698305417.jpg?lm=1' },
+  { id: 'sq-7', createdAt: new Date().toISOString(), name: '산드로 토날리', number: 8, position: PlayerPosition.MF, photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/397033-1688647575.jpg?lm=1' },
+  { id: 'sq-10', createdAt: new Date().toISOString(), name: '션 롱스태프', number: 36, position: PlayerPosition.MF, photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/346700-1698305447.jpg?lm=1' },
+  { id: 'sq-13', createdAt: new Date().toISOString(), name: '조 윌록', number: 28, position: PlayerPosition.MF, photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/340329-1698305658.jpg?lm=1' },
+  { id: 'sq-2', createdAt: new Date().toISOString(), name: '알렉산데르 이사크', number: 14, position: PlayerPosition.FW, photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/349066-1698305273.jpg?lm=1' },
+  { id: 'sq-6', createdAt: new Date().toISOString(), name: '앤서니 고든', number: 10, position: PlayerPosition.FW, photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/503733-1698305174.jpg?lm=1' },
+  { id: 'sq-11', createdAt: new Date().toISOString(), name: '칼럼 윌슨', number: 9, position: PlayerPosition.FW, photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/158013-1698305634.jpg?lm=1' },
+  { id: 'sq-12', createdAt: new Date().toISOString(), name: '하비 반스', number: 15, position: PlayerPosition.FW, photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/331320-1688648174.jpg?lm=1' },
 ];
 
 export const MOCK_VOTES: Vote[] = [
