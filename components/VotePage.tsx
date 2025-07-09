@@ -1,4 +1,5 @@
 
+
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Vote, VoteKind, VoteOption } from '../types';
@@ -27,7 +28,7 @@ const VotePage: React.FC<VotePageProps> = ({ votes, ratings, onVote, onRatePlaye
   const vote = dataSet?.find(v => v.id === id);
 
   useEffect(() => {
-    if (!vote && dataSet) {
+    if (!vote && dataSet && dataSet.length > 0) {
       // 데이터가 로드되었지만 일치하는 투표가 없으면 홈으로 이동
       navigate('/', { replace: true });
     }

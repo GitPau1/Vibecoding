@@ -1,8 +1,7 @@
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeftIcon } from './icons/ChevronLeftIcon';
-import { ChevronRightIcon } from './icons/ChevronRightIcon';
 import { ImageWithFallback } from './ui/ImageWithFallback';
 
 type CarouselItem = {
@@ -10,6 +9,7 @@ type CarouselItem = {
   title: string;
   imageUrl?: string;
   path: string;
+  category: string;
 }
 
 interface CarouselProps {
@@ -20,6 +20,12 @@ const Carousel: React.FC<CarouselProps> = ({ items }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const navigate = useNavigate();
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Drag state refs
+  const isDraggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const hasDraggedRef = useRef(false);
 
   const resetTimeout = useCallback(() => {
     if (timeoutRef.current) {
@@ -45,52 +51,110 @@ const Carousel: React.FC<CarouselProps> = ({ items }) => {
     return () => resetTimeout();
   }, [currentIndex, nextSlide, resetTimeout]);
 
-  const handleMouseEnter = () => resetTimeout();
-  const handleMouseLeave = () => {
-      resetTimeout();
-      timeoutRef.current = setTimeout(nextSlide, 5000);
-  };
+  const getPositionX = (e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent): number => {
+    return 'touches' in e ? e.touches[0].clientX : e.clientX;
+  }
   
+  const getPositionXFromUp = (e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent): number => {
+    return 'changedTouches' in e ? e.changedTouches[0].clientX : e.clientX;
+  }
+
+  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    isDraggingRef.current = true;
+    hasDraggedRef.current = false;
+    startXRef.current = getPositionX(e);
+    resetTimeout();
+    if(containerRef.current) {
+        containerRef.current.style.cursor = 'grabbing';
+    }
+  }, [resetTimeout]);
+
+  const handleDragEnd = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDraggingRef.current) return;
+    
+    isDraggingRef.current = false;
+    if (containerRef.current) {
+        containerRef.current.style.cursor = 'grab';
+    }
+    
+    if (hasDraggedRef.current) {
+        const endX = getPositionXFromUp(e);
+        const moved = endX - startXRef.current;
+        if (moved < -50) { // Swiped left
+          nextSlide();
+        } else if (moved > 50) { // Swiped right
+          prevSlide();
+        }
+    } else {
+      // It's a click because it didn't meet the drag threshold
+      const currentItem = items[currentIndex];
+      if (currentItem.path.startsWith('http')) {
+        window.open(currentItem.path, '_blank', 'noopener,noreferrer');
+      } else {
+        navigate(currentItem.path);
+      }
+    }
+    
+    timeoutRef.current = setTimeout(nextSlide, 5000);
+  }, [nextSlide, prevSlide, items, currentIndex, navigate]);
+    
+  const handleDragMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+      if(!isDraggingRef.current) return;
+      const currentX = getPositionX(e);
+      if (Math.abs(currentX - startXRef.current) > 10) { // Drag threshold
+        hasDraggedRef.current = true;
+      }
+  }, []);
+
+  const handleMouseLeave = useCallback((e: React.MouseEvent) => {
+    if (isDraggingRef.current) {
+        handleDragEnd(e);
+    }
+  }, [handleDragEnd]);
+
   if (items.length === 0) return null;
 
   return (
     <div 
-        className="carousel-container h-[300px] md:h-[400px] desktop:h-[450px]" 
-        onMouseEnter={handleMouseEnter} 
+        ref={containerRef}
+        className="carousel-container h-[240px] md:h-[320px] desktop:h-[400px]" 
+        onMouseDown={handleDragStart}
+        onMouseUp={handleDragEnd}
+        onMouseMove={handleDragMove}
         onMouseLeave={handleMouseLeave}
+        onTouchStart={handleDragStart}
+        onTouchEnd={handleDragEnd}
+        onTouchMove={handleDragMove}
     >
       <div
         className="carousel-track"
         style={{ transform: `translateX(-${currentIndex * 100}%)` }}
       >
         {items.map(item => (
-          <div key={item.id} className="carousel-slide" onClick={() => {
-            if (item.path.startsWith('http')) {
-                window.open(item.path, '_blank', 'noopener,noreferrer');
-            } else {
-                navigate(item.path);
-            }
-          }}>
-            <ImageWithFallback src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" />
-            <div className="overlay p-6 md:p-8 lg:p-10">
-              <h3 className="text-white text-2xl md:text-3xl lg:text-4xl font-extrabold leading-tight text-shadow-lg line-clamp-3">{item.title}</h3>
+          <div key={item.id} className="carousel-slide">
+            {item.imageUrl ? (
+              <ImageWithFallback src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" />
+            ) : (
+              <div className="carousel-fallback-gradient"></div>
+            )}
+            <div className="overlay">
+              <div className="carousel-content-wrapper">
+                <div className="carousel-chip">{item.category}</div>
+                <h3 className="carousel-title text-white text-2xl md:text-3xl lg:text-4xl font-extrabold leading-tight line-clamp-2">{item.title}</h3>
+              </div>
             </div>
           </div>
         ))}
       </div>
 
-      <button onClick={prevSlide} className="carousel-nav left">
-        <ChevronLeftIcon className="w-6 h-6" />
-      </button>
-      <button onClick={nextSlide} className="carousel-nav right">
-        <ChevronRightIcon className="w-6 h-6" />
-      </button>
-
       <div className="carousel-indicators">
         {items.map((_, index) => (
           <button
             key={index}
-            onClick={() => goToSlide(index)}
+            onClick={(e) => {
+                e.stopPropagation(); // Prevent drag end from firing
+                goToSlide(index)
+            }}
             className={`carousel-indicator ${currentIndex === index ? 'active' : ''}`}
           ></button>
         ))}

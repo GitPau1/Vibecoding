@@ -1,8 +1,8 @@
 
+
 import React, { useState, useMemo } from 'react';
-import { Vote, Quiz, Article, XPost } from '../types';
+import { Vote, Article, XPost, VoteKind } from '../types';
 import VoteCard from './VoteCard';
-import QuizCard from './QuizCard';
 import ArticleCard from './ArticleCard';
 import XPostCard from './XPostCard';
 import Carousel from './Carousel';
@@ -10,7 +10,6 @@ import Carousel from './Carousel';
 interface HomePageProps {
   votes: Vote[];
   ratings: Vote[];
-  quizzes: Quiz[];
   articles: Article[];
   xPosts: XPost[];
   loading: boolean;
@@ -22,31 +21,41 @@ type CarouselItem = {
   imageUrl?: string;
   path: string;
   createdAt: string;
+  category: string;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, articles, xPosts, loading }) => {
-  const [activeTab, setActiveTab] = useState<'votes' | 'ratings' | 'quizzes' | 'articles' | 'x-posts'>('votes');
+const HomePage: React.FC<HomePageProps> = ({ votes, ratings, articles, xPosts, loading }) => {
+  const [activeTab, setActiveTab] = useState<'match' | 'vote' | 'articles' | 'x-posts'>('match');
 
-  const now = new Date();
-  const ongoingVotes = votes.filter(vote => new Date(vote.endDate) >= now).sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
-  const finishedVotes = votes.filter(vote => new Date(vote.endDate) < now).sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime());
-  const sortedRatings = [...ratings].sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime());
+  const matchItems = useMemo(() => {
+    const combined = [
+        ...votes.filter(v => v.type === VoteKind.MATCH), 
+        ...ratings
+    ];
+    return combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [votes, ratings]);
+
+  const voteItems = useMemo(() => {
+    return votes.filter(v => v.type === VoteKind.PLAYER || v.type === VoteKind.TOPIC)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [votes]);
+  
+
   const sortedArticles = [...articles].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   const sortedXPosts = [...xPosts].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const recentItems: CarouselItem[] = useMemo(() => {
     const allContent = [
-        ...votes.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/vote/${item.id}` })),
-        ...ratings.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/rating/${item.id}` })),
-        ...quizzes.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/quiz/${item.id}` })),
-        ...articles.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/article/${item.id}` })),
-        ...xPosts.map(item => ({ id: item.id, title: item.description, imageUrl: undefined, createdAt: item.createdAt, path: item.postUrl }))
+        ...votes.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/vote/${item.id}`, category: item.type })),
+        ...ratings.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/rating/${item.id}`, category: item.type })),
+        ...articles.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/article/${item.id}`, category: '아티클' })),
+        ...xPosts.map(item => ({ id: item.id, title: item.description, imageUrl: undefined, createdAt: item.createdAt, path: item.postUrl, category: '최신 소식' })),
     ];
     return allContent
         .filter(item => item.createdAt)
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 5);
-  }, [votes, ratings, quizzes, articles, xPosts]);
+  }, [votes, ratings, articles, xPosts]);
 
 
   const getTabClassName = (tabName: typeof activeTab) => {
@@ -78,7 +87,7 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, articles, 
   );
   
   const CarouselSkeleton = () => (
-    <div className="h-[300px] md:h-[400px] desktop:h-[450px] w-full bg-gray-200 animate-pulse rounded-3xl"></div>
+    <div className="h-[240px] md:h-[320px] desktop:h-[400px] w-full bg-gray-200 animate-pulse rounded-3xl"></div>
   );
 
   return (
@@ -89,110 +98,48 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, articles, 
         recentItems.length > 0 && <Carousel items={recentItems} />
       )}
       
-      <div className="p-1.5 bg-gray-100 rounded-full w-full max-w-3xl mx-auto">
+      <div className="p-1.5 bg-gray-100 rounded-full w-full max-w-2xl mx-auto">
         <nav className="flex items-center space-x-1" aria-label="Tabs">
-          <button
-            onClick={() => setActiveTab('votes')}
-            className={getTabClassName('votes')}
-          >
-            투표
-          </button>
-          <button
-            onClick={() => setActiveTab('ratings')}
-            className={getTabClassName('ratings')}
-          >
-            선수 평점
-          </button>
-          <button
-            onClick={() => setActiveTab('quizzes')}
-            className={getTabClassName('quizzes')}
-          >
-            퀴즈
-          </button>
-          <button
-            onClick={() => setActiveTab('articles')}
-            className={getTabClassName('articles')}
-          >
-            아티클
-          </button>
-          <button
-            onClick={() => setActiveTab('x-posts')}
-            className={getTabClassName('x-posts')}
-          >
-            최신 소식
-          </button>
+          <button onClick={() => setActiveTab('match')} className={getTabClassName('match')}>매치</button>
+          <button onClick={() => setActiveTab('vote')} className={getTabClassName('vote')}>투표</button>
+          <button onClick={() => setActiveTab('articles')} className={getTabClassName('articles')}>아티클</button>
+          <button onClick={() => setActiveTab('x-posts')} className={getTabClassName('x-posts')}>최신 소식</button>
         </nav>
       </div>
 
       <div className="mt-8">
        {loading ? <LoadingSkeleton /> : (
          <>
-            {activeTab === 'votes' && (
-              <div className="space-y-12">
-                <section>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-4">진행중인 투표</h3>
-                  {ongoingVotes.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 desktop:grid-cols-3 gap-6">
-                      {ongoingVotes.map(vote => (
-                        <VoteCard key={vote.id} vote={vote} />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 px-6 bg-gray-100 rounded-2xl">
-                      <p className="text-gray-500">현재 진행중인 투표가 없습니다.</p>
-                      <p className="text-sm text-gray-400 mt-2">새로운 투표를 직접 만들어보세요!</p>
-                    </div>
-                  )}
-                </section>
-
-                {finishedVotes.length > 0 && (
-                  <section>
-                    <h3 className="text-2xl font-bold text-gray-900 mb-4">마감된 투표</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 desktop:grid-cols-3 gap-6">
-                      {finishedVotes.map(vote => (
-                        <VoteCard key={vote.id} vote={vote} />
-                      ))}
-                    </div>
-                  </section>
-                )}
-              </div>
-            )}
-            
-            {activeTab === 'ratings' && (
+            {activeTab === 'match' && (
               <section>
-                 <h3 className="text-2xl font-bold text-gray-900 mb-4">선수 평점</h3>
-                {sortedRatings.length > 0 ? (
+                 <h3 className="text-2xl font-bold text-gray-900 mb-4">매치 콘텐츠</h3>
+                {matchItems.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 desktop:grid-cols-3 gap-6">
-                    {sortedRatings.map(rating => (
-                      <VoteCard key={rating.id} vote={rating} />
-                    ))}
+                    {matchItems.map(item => <VoteCard key={item.id} vote={item} />)}
                   </div>
                 ) : (
                   <div className="text-center py-12 px-6 bg-gray-100 rounded-2xl">
-                    <p className="text-gray-500">현재 등록된 선수 평점이 없습니다.</p>
-                    <p className="text-sm text-gray-400 mt-2">새로운 선수 평점을 직접 만들어보세요!</p>
+                    <p className="text-gray-500">아직 매치 관련 콘텐츠가 없습니다.</p>
                   </div>
                 )}
               </section>
             )}
 
-            {activeTab === 'quizzes' && (
+            {activeTab === 'vote' && (
               <section>
-                 <h3 className="text-2xl font-bold text-gray-900 mb-4">도전! 퀴즈</h3>
-                {quizzes.length > 0 ? (
+                 <h3 className="text-2xl font-bold text-gray-900 mb-4">커뮤니티 투표</h3>
+                {voteItems.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 desktop:grid-cols-3 gap-6">
-                    {quizzes.map(quiz => (
-                      <QuizCard key={quiz.id} quiz={quiz} />
-                    ))}
+                    {voteItems.map(item => <VoteCard key={item.id} vote={item} />)}
                   </div>
                 ) : (
                   <div className="text-center py-12 px-6 bg-gray-100 rounded-2xl">
-                    <p className="text-gray-500">현재 등록된 퀴즈가 없습니다.</p>
-                    <p className="text-sm text-gray-400 mt-2">새로운 퀴즈를 직접 만들어보세요!</p>
+                    <p className="text-gray-500">진행중인 커뮤니티 투표가 없습니다.</p>
                   </div>
                 )}
               </section>
             )}
+
 
             {activeTab === 'articles' && (
               <section>
@@ -206,7 +153,6 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, articles, 
                 ) : (
                   <div className="text-center py-12 px-6 bg-gray-100 rounded-2xl">
                     <p className="text-gray-500">현재 등록된 아티클이 없습니다.</p>
-                    <p className="text-sm text-gray-400 mt-2">새로운 아티클을 직접 만들어보세요!</p>
                   </div>
                 )}
               </section>
@@ -224,7 +170,6 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, quizzes, articles, 
                 ) : (
                   <div className="text-center py-12 px-6 bg-gray-100 rounded-2xl max-w-2xl mx-auto">
                     <p className="text-gray-500">현재 등록된 소식이 없습니다.</p>
-                    <p className="text-sm text-gray-400 mt-2">새로운 소식을 직접 만들어보세요!</p>
                   </div>
                 )}
               </section>

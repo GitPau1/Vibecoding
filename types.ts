@@ -37,33 +37,6 @@ export interface Vote {
   players?: Player[];
 }
 
-// New Quiz Types
-export interface QuizQuestionOption {
-  id: string;
-  text: string;
-}
-
-export interface QuizQuestion {
-  id: string;
-  text: string;
-  options: QuizQuestionOption[];
-  correctOptionId: number;
-  imageUrl?: string;
-}
-
-export type NewQuizQuestion = Omit<QuizQuestion, 'id' | 'options'> & {
-  options: Omit<QuizQuestionOption, 'id'>[];
-};
-
-export interface Quiz {
-  id: string;
-  title: string;
-  description: string;
-  imageUrl?: string;
-  questions: QuizQuestion[];
-  createdAt: string;
-}
-
 // New Article Type
 export interface Article {
   id: string;

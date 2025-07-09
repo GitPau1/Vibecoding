@@ -1,6 +1,6 @@
 
 
-import { Vote, VoteKind, Quiz, Player, Article, XPost, SquadPlayer, PlayerPosition } from './types';
+import { Vote, VoteKind, Player, Article, XPost, SquadPlayer, PlayerPosition } from './types';
 
 export const MOCK_PLAYERS: Player[] = [
   { id: 1, name: '브루누 기마랑이스', team: '뉴캐슬 유나이티드', photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/659232-1675785723.jpg?lm=1', isStarter: true },
@@ -97,29 +97,6 @@ export const MOCK_RATINGS: Vote[] = [
         comments: ['최고의 활약!', '조금 아쉬웠어요'],
     })),
   }
-];
-
-export const MOCK_QUIZZES: Quiz[] = [
-    {
-        id: 'mock-quiz-1',
-        title: '진정한 맥파이(Magpie)이신가요?',
-        description: '뉴캐슬 유나이티드의 역사와 기록에 대한 퀴즈를 풀어보세요!',
-        imageUrl: 'https://i2-prod.chroniclelive.co.uk/incoming/article25102573.ece/ALTERNATES/s1200c/0_Wor-Flags-at-St-James-Park.jpg',
-        createdAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
-        questions: [
-            {
-                id: 'mock-q1',
-                text: '뉴캐슬 유나이티드의 역대 최다 득점자는 누구일까요?',
-                options: [
-                    { id: 'mock-q1-1', text: '재키 밀번' },
-                    { id: 'mock-q1-2', text: '앨런 시어러' },
-                    { id: 'mock-q1-3', text: '피터 비어슬리' },
-                    { id: 'mock-q1-4', text: '앤디 콜' },
-                ],
-                correctOptionId: 2,
-            }
-        ]
-    }
 ];
 
 export const MOCK_ARTICLES: Article[] = [

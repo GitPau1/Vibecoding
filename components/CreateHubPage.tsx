@@ -1,7 +1,5 @@
 
 
-
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from './ui/Card';
@@ -31,14 +29,6 @@ const CreateHubPage: React.FC = () => {
           <div className="text-5xl mb-4">⭐</div>
           <h3 className="text-xl font-bold text-gray-900">선수 평점 만들기</h3>
           <p className="text-gray-600 mt-2 text-sm">경기별 선수들의 활약을 평가하고 공유해보세요.</p>
-        </Card>
-        <Card 
-          className="p-8 text-center cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col items-center justify-center"
-          onClick={() => navigate('/create/quiz')}
-        >
-          <div className="text-5xl mb-4">❓</div>
-          <h3 className="text-xl font-bold text-gray-900">퀴즈 만들기</h3>
-          <p className="text-gray-600 mt-2 text-sm">재미있는 축구 퀴즈를 만들어 지식을 시험해보세요.</p>
         </Card>
         <Card 
           className="p-8 text-center cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col items-center justify-center"

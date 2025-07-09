@@ -35,9 +35,9 @@ const PlayerRatingInput: React.FC<PlayerRatingInputProps> = ({ player, ratingDat
                         type="range"
                         min="1"
                         max="10"
-                        step="1"
+                        step="0.5"
                         value={sliderValue}
-                        onChange={(e) => onRatingChange(player.id, parseInt(e.target.value, 10))}
+                        onChange={(e) => onRatingChange(player.id, parseFloat(e.target.value))}
                         className={`custom-range w-full sm:w-32 ${!isRated ? 'unrated' : ''}`}
                     />
                     <span className={`font-bold text-lg w-12 text-center ${isRated ? 'text-[#6366f1]' : 'text-gray-400'}`}>{isRated ? currentRating?.toFixed(1) : '-'}</span>
