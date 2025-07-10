@@ -96,7 +96,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (!available) {
           return { user: null, error: new AuthError('이미 사용 중인 아이디입니다.') };
       }
-      const email = `${username.toLowerCase()}@soccervote.local`;
+      // Prefix with "user-" to avoid conflicts with reserved names like "admin", "root", etc.
+      const email = `user-${username.toLowerCase()}@soccervote.local`;
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -176,7 +177,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const signIn = async ({ username, password }: { username: string; password: string; }) => {
     if (!isLocalMode) {
       // Supabase logic
-      const email = `${username.toLowerCase()}@soccervote.local`;
+      // Prefix with "user-" to match the sign-up logic.
+      const email = `user-${username.toLowerCase()}@soccervote.local`;
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,

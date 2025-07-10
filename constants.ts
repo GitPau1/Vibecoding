@@ -126,12 +126,12 @@ export const MOCK_X_POSTS: XPost[] = [
     id: 'mock-x-post-1',
     createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
     description: '공식 발표: 뉴캐슬 유나이티드가 새로운 유망주 윙어와 5년 계약을 체결했습니다! 메디컬 테스트 완료 후 팀에 합류할 예정입니다.',
-    postUrl: 'https://x.com/FabrizioRomano/status/17988 Fabrizio Romano on X'
+    postUrl: 'https://x.com/FabrizioRomano/status/1808039304997708182'
   },
   {
     id: 'mock-x-post-2',
     createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
     description: '다음 주 챔피언스리그 경기를 앞두고 주장 키어런 트리피어가 훈련에 복귀했습니다. 팀에 큰 힘이 될 것입니다.',
-    postUrl: 'https://x.com/NUFC/status/1234567891'
+    postUrl: 'https://x.com/NUFC/status/1810243171350024497'
   }
 ];
