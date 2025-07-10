@@ -1,4 +1,5 @@
 
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase, Database } from '../lib/supabaseClient';
 import { AuthSession, Profile } from '../types';
@@ -97,8 +98,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           return { user: null, session: null, error: new AuthError('이미 사용 중인 아이디입니다.') };
       }
       
-      // Use a more unique internal email format to avoid conflicts with reserved words.
-      const email = `${username.toLowerCase()}_soccervote@app.local`;
+      const email = `user.${username.toLowerCase()}@example.com`;
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -200,8 +200,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const signIn = async ({ username, password }: { username: string; password: string; }) => {
     if (!isLocalMode) {
-      // Use a more unique internal email format to avoid conflicts with reserved words.
-      const email = `${username.toLowerCase()}_soccervote@app.local`;
+      const email = `user.${username.toLowerCase()}@example.com`;
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -247,7 +246,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const signOut = async () => {
     if (!isLocalMode) {
       // Supabase logic
-      return await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut();
+      if (!error) {
+        // Manually clear session and profile for immediate UI update
+        setSession(null);
+        setProfile(null);
+      }
+      return { error };
     }
     
     // --- MOCK SIGN OUT ---
