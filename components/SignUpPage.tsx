@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card } from './ui/Card';
@@ -9,7 +10,7 @@ import { useToast } from '../contexts/ToastContext';
 
 const SignUpPage: React.FC = () => {
   const navigate = useNavigate();
-  const { signUp, session, authLoading, checkUsernameAvailability } = useAuth();
+  const { signUp, signIn, session, authLoading, checkUsernameAvailability } = useAuth();
   const { addToast } = useToast();
 
   const [username, setUsername] = useState('');
@@ -88,14 +89,28 @@ const SignUpPage: React.FC = () => {
     }
     
     setLoading(true);
-    const { error } = await signUp({ username, password, nickname });
-    if (error) {
-      addToast(error.message, 'error');
-    } else {
-      addToast('회원가입이 완료되었습니다. 로그인해주세요.', 'success');
-      navigate('/login');
+
+    // 1. Sign up the user
+    const { error: signUpError } = await signUp({ username, password, nickname });
+    if (signUpError) {
+      addToast(signUpError.message, 'error');
+      setLoading(false);
+      return;
     }
+
+    // 2. Automatically sign in the user
+    addToast('회원가입 성공! 자동으로 로그인합니다...', 'info');
+    const { error: signInError } = await signIn({ username, password });
+
     setLoading(false);
+    
+    if (signInError) {
+      addToast(`자동 로그인에 실패했습니다. 로그인 페이지로 이동합니다. (${signInError.message})`, 'error');
+      navigate('/login');
+    } else {
+      addToast('로그인 되었습니다. 환영합니다!', 'success');
+      navigate('/');
+    }
   };
   
   const getUsernameMessageColor = () => {
