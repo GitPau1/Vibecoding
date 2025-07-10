@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase, Database } from '../lib/supabaseClient';
 import { AuthSession, Profile } from '../types';
@@ -9,7 +10,7 @@ type UserProfile = Database['public']['Tables']['profiles']['Row'];
 interface AuthContextType {
   session: AuthSession | null;
   profile: UserProfile | null;
-  signUp: (args: { username: string; password: string; nickname: string; }) => Promise<{ user: User | null; error: AuthError | null; }>;
+  signUp: (args: { username: string; password: string; nickname: string; }) => Promise<{ user: User | null; session: Session | null; error: AuthError | null; }>;
   signIn: (args: { username: string; password: string; }) => Promise<{ error: AuthError | null; }>;
   signOut: () => Promise<{ error: AuthError | null; }>;
   authLoading: boolean;
@@ -91,13 +92,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const signUp = async ({ username, password, nickname }: { username: string; password: string; nickname: string; }) => {
     if (!isLocalMode) {
-      // Supabase logic
       const { available } = await checkUsernameAvailability(username);
       if (!available) {
-          return { user: null, error: new AuthError('이미 사용 중인 아이디입니다.') };
+          return { user: null, session: null, error: new AuthError('이미 사용 중인 아이디입니다.') };
       }
-      // Prefix with "user-" to avoid conflicts with reserved names like "admin", "root", etc.
-      const email = `user-${username.toLowerCase()}@soccervote.local`;
+      
+      // Use a more unique internal email format to avoid conflicts with reserved words.
+      const email = `${username.toLowerCase()}_soccervote@app.local`;
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -108,14 +109,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           },
         },
       });
-      return { user: data.user, error };
+
+      if (error) return { user: null, session: null, error };
+
+      // Handle case where email confirmation is required by mistake.
+      if (data.user && !data.session) {
+        return { 
+            user: data.user, 
+            session: null, 
+            error: new AuthError("회원가입은 성공했으나 자동 로그인이 실패했습니다. 관리자는 Supabase 프로젝트의 'Confirm email' 설정을 비활성화해야 합니다.") 
+        };
+      }
+      
+      return { user: data.user, session: data.session, error };
     }
 
     // --- MOCK SIGN UP ---
     try {
       const { available } = await checkUsernameAvailability(username);
       if (!available) {
-        return { user: null, error: new AuthError('이미 사용 중인 아이디입니다.') };
+        return { user: null, session: null, error: new AuthError('이미 사용 중인 아이디입니다.') };
       }
 
       const mockUsers: UserProfile[] = JSON.parse(localStorage.getItem(MOCK_USERS_KEY) || '[]');
@@ -136,10 +149,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         created_at: new Date().toISOString(),
       };
       
-      return { user: mockUser, error: null };
+      // Also create and set a session immediately for local mode
+      const mockSession: AuthSession = {
+        access_token: `mock-access-${Date.now()}`,
+        token_type: 'bearer',
+        expires_in: 3600,
+        expires_at: Date.now() + 3600 * 1000,
+        refresh_token: `mock-refresh-${Date.now()}`,
+        user: mockUser,
+      };
+      localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify(mockSession));
+      
+      return { user: mockUser, session: mockSession, error: null };
 
     } catch (e: any) {
-      return { user: null, error: new AuthError(e.message || 'An unknown error occurred') };
+      return { user: null, session: null, error: new AuthError(e.message || 'An unknown error occurred') };
     }
   };
   
@@ -176,9 +200,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const signIn = async ({ username, password }: { username: string; password: string; }) => {
     if (!isLocalMode) {
-      // Supabase logic
-      // Prefix with "user-" to match the sign-up logic.
-      const email = `user-${username.toLowerCase()}@soccervote.local`;
+      // Use a more unique internal email format to avoid conflicts with reserved words.
+      const email = `${username.toLowerCase()}_soccervote@app.local`;
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,

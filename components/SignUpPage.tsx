@@ -10,7 +10,7 @@ import { useToast } from '../contexts/ToastContext';
 
 const SignUpPage: React.FC = () => {
   const navigate = useNavigate();
-  const { signUp, signIn, session, authLoading, checkUsernameAvailability } = useAuth();
+  const { signUp, session, authLoading, checkUsernameAvailability } = useAuth();
   const { addToast } = useToast();
 
   const [username, setUsername] = useState('');
@@ -90,26 +90,22 @@ const SignUpPage: React.FC = () => {
     
     setLoading(true);
 
-    // 1. Sign up the user
-    const { error: signUpError } = await signUp({ username, password, nickname });
-    if (signUpError) {
-      addToast(signUpError.message, 'error');
-      setLoading(false);
+    const { session: newSession, error } = await signUp({ username, password, nickname });
+
+    setLoading(false);
+
+    if (error) {
+      addToast(error.message, 'error');
       return;
     }
 
-    // 2. Automatically sign in the user
-    addToast('회원가입 성공! 자동으로 로그인합니다...', 'info');
-    const { error: signInError } = await signIn({ username, password });
-
-    setLoading(false);
-    
-    if (signInError) {
-      addToast(`자동 로그인에 실패했습니다. 로그인 페이지로 이동합니다. (${signInError.message})`, 'error');
-      navigate('/login');
-    } else {
-      addToast('로그인 되었습니다. 환영합니다!', 'success');
+    if (newSession) {
+      addToast('회원가입 및 로그인에 성공했습니다!', 'success');
       navigate('/');
+    } else {
+        // This case should ideally not happen with the new logic unless email confirmation is on.
+        addToast('회원가입에 성공했으나, 로그인에 실패했습니다. 다시 로그인해주세요.', 'info');
+        navigate('/login');
     }
   };
   
