@@ -1,5 +1,7 @@
 
 
+import { Session } from '@supabase/supabase-js';
+
 export enum VoteKind {
   MATCH = '경기 결과 예측',
   PLAYER = '베스트 플레이어',
@@ -73,3 +75,13 @@ export interface SquadPlayer {
   position: PlayerPosition;
   photoUrl?: string;
 }
+
+// New Auth Types
+export interface Profile {
+  id: string;
+  updated_at?: string;
+  username: string;
+  nickname: string;
+}
+
+export type AuthSession = Session;

@@ -12,25 +12,55 @@ import LoadFromSquadModal from './LoadFromSquadModal';
 
 interface PlayerInputsProps {
     playerList: { name: string; team: string; photoUrl: string }[];
-    onPlayerChange: (index: number, field: 'name' | 'team' | 'photoUrl', value: string) => void;
-    onRemovePlayer: (index: number) => void;
+    listType: 'starters' | 'substitutes';
+    onPlayerChange: (listType: 'starters' | 'substitutes', index: number, field: 'name' | 'team' | 'photoUrl', value: string) => void;
+    onRemovePlayer: (listType: 'starters' | 'substitutes', index: number) => void;
     minPlayers: number;
+    onDragStart: (e: React.DragEvent, index: number, listType: 'starters' | 'substitutes') => void;
+    onDragEnd: (e: React.DragEvent) => void;
+    onDrop: (e: React.DragEvent, index: number, listType: 'starters' | 'substitutes') => void;
 }
 
-const PlayerInputs: React.FC<PlayerInputsProps> = React.memo(({ playerList, onPlayerChange, onRemovePlayer, minPlayers }) => (
-    <>
-        {playerList.map((player, index) => (
-            <div key={index} className="p-4 border rounded-lg bg-gray-50/50 space-y-3 relative group">
-                {playerList.length > minPlayers && (
-                    <button type="button" onClick={() => onRemovePlayer(index)} className="absolute top-2 right-2 text-gray-400 hover:text-red-500 font-bold w-6 h-6 rounded-full flex items-center justify-center bg-white border border-transparent hover:border-red-300 transition-all opacity-0 group-hover:opacity-100">&times;</button>
-                )}
-                <Input placeholder="선수 이름" value={player.name} onChange={e => onPlayerChange(index, 'name', e.target.value)} required />
-                <Input placeholder="소속 팀 (선택)" value={player.team} onChange={e => onPlayerChange(index, 'team', e.target.value)} />
-                <Input placeholder="선수 사진 URL (선택)" value={player.photoUrl} onChange={e => onPlayerChange(index, 'photoUrl', e.target.value)} />
-            </div>
-        ))}
-    </>
-));
+const PlayerInputs: React.FC<PlayerInputsProps> = React.memo(({ playerList, listType, onPlayerChange, onRemovePlayer, minPlayers, onDragStart, onDragEnd, onDrop }) => {
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        const target = e.currentTarget as HTMLDivElement;
+        target.classList.add('drag-over');
+    };
+    const handleDragLeave = (e: React.DragEvent) => {
+        const target = e.currentTarget as HTMLDivElement;
+        target.classList.remove('drag-over');
+    };
+    const handleDropInternal = (e: React.DragEvent, index: number) => {
+        const target = e.currentTarget as HTMLDivElement;
+        target.classList.remove('drag-over');
+        onDrop(e, index, listType);
+    };
+
+    return (
+        <>
+            {playerList.map((player, index) => (
+                <div
+                    key={index}
+                    draggable
+                    onDragStart={(e) => onDragStart(e, index, listType)}
+                    onDragEnd={onDragEnd}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDropInternal(e, index)}
+                    className="p-4 border rounded-lg bg-gray-50/50 space-y-3 relative group cursor-grab active:cursor-grabbing"
+                >
+                    {playerList.length > minPlayers && (
+                        <button type="button" onClick={() => onRemovePlayer(listType, index)} className="absolute top-2 right-2 text-gray-400 hover:text-red-500 font-bold w-6 h-6 rounded-full flex items-center justify-center bg-white border border-transparent hover:border-red-300 transition-all opacity-0 group-hover:opacity-100">&times;</button>
+                    )}
+                    <Input placeholder="선수 이름" value={player.name} onChange={e => onPlayerChange(listType, index, 'name', e.target.value)} required />
+                    <Input placeholder="소속 팀 (선택)" value={player.team} onChange={e => onPlayerChange(listType, index, 'team', e.target.value)} />
+                    <Input placeholder="선수 사진 URL (선택)" value={player.photoUrl} onChange={e => onPlayerChange(listType, index, 'photoUrl', e.target.value)} />
+                </div>
+            ))}
+        </>
+    );
+});
 
 interface CreateRatingPageProps {
   onCreateRating: (voteData: VoteCreationData) => void;
@@ -49,28 +79,25 @@ const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating, squ
     ...Array(11).fill({ name: '', team: '', photoUrl: '' })
   ]);
   const [substitutes, setSubstitutes] = useState<{ name: string; team: string; photoUrl: string }[]>([]);
-  
-  const createPlayerChangeHandler = (
-    setter: React.Dispatch<React.SetStateAction<{ name: string; team: string; photoUrl: string }[]>>
-  ) => useCallback((index: number, field: 'name' | 'team' | 'photoUrl', value: string) => {
+  const [draggedItem, setDraggedItem] = useState<{ list: 'starters' | 'substitutes', index: number } | null>(null);
+
+  const handlePlayerChange = useCallback((listType: 'starters' | 'substitutes', index: number, field: 'name' | 'team' | 'photoUrl', value: string) => {
+    const setter = listType === 'starters' ? setStarters : setSubstitutes;
     setter(prevList => {
       const newList = [...prevList];
       newList[index] = { ...newList[index], [field]: value };
       return newList;
     });
-  }, [setter]);
+  }, []);
 
-  const handleStarterChange = createPlayerChangeHandler(setStarters);
-  const handleSubstituteChange = createPlayerChangeHandler(setSubstitutes);
-
-  const addPlayerToList = useCallback((setter: React.Dispatch<React.SetStateAction<typeof starters>>) => {
+  const addPlayer = useCallback((listType: 'starters' | 'substitutes') => {
+      const setter = listType === 'starters' ? setStarters : setSubstitutes;
       setter(prev => [...prev, { name: '', team: '', photoUrl: '' }]);
   }, []);
 
-  const removePlayerFromList = useCallback((
-    setter: React.Dispatch<React.SetStateAction<typeof starters>>,
-    index: number, minLength = 0
-  ) => {
+  const removePlayer = useCallback((listType: 'starters' | 'substitutes', index: number) => {
+    const setter = listType === 'starters' ? setStarters : setSubstitutes;
+    const minLength = listType === 'starters' ? 1 : 0;
     setter(prevList => {
         if (prevList.length > minLength) {
             return prevList.filter((_, i) => i !== index);
@@ -78,6 +105,39 @@ const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating, squ
         return prevList;
     });
   }, []);
+
+  const handleDragStart = (e: React.DragEvent, index: number, listType: 'starters' | 'substitutes') => {
+    setDraggedItem({ list: listType, index });
+    e.dataTransfer.effectAllowed = 'move';
+    setTimeout(() => { (e.target as HTMLElement).style.opacity = '0.5'; }, 0);
+  };
+  
+  const handleDragEnd = (e: React.DragEvent) => {
+    (e.target as HTMLElement).style.opacity = '1';
+    setDraggedItem(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number, targetList: 'starters' | 'substitutes') => {
+    e.preventDefault();
+    if (!draggedItem || draggedItem.list !== targetList) {
+        if (draggedItem && draggedItem.list !== targetList) {
+            addToast('선수는 선발/교체 그룹 내에서만 순서를 변경할 수 있습니다.', 'info');
+        }
+        return;
+    }
+    
+    const sourceIndex = draggedItem.index;
+    if (sourceIndex === targetIndex) return;
+
+    const listSetter = targetList === 'starters' ? setStarters : setSubstitutes;
+    
+    listSetter(prevList => {
+        const list = [...prevList];
+        const [removed] = list.splice(sourceIndex, 1);
+        list.splice(targetIndex, 0, removed);
+        return list;
+    });
+  };
 
   const handleLoadFromSquad = (loadedPlayers: {player: SquadPlayer, isStarter: boolean}[]) => {
     const newStarters = loadedPlayers.filter(p => p.isStarter).map(p => ({
@@ -174,11 +234,15 @@ const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating, squ
                     <div className="space-y-3">
                         <PlayerInputs 
                             playerList={starters}
-                            onPlayerChange={handleStarterChange}
-                            onRemovePlayer={(index) => removePlayerFromList(setStarters, index, 1)}
+                            listType="starters"
+                            onPlayerChange={handlePlayerChange}
+                            onRemovePlayer={removePlayer}
                             minPlayers={1}
+                            onDragStart={handleDragStart}
+                            onDragEnd={handleDragEnd}
+                            onDrop={handleDrop}
                         />
-                        <Button type="button" variant="outline" onClick={() => addPlayerToList(setStarters)}>
+                        <Button type="button" variant="outline" onClick={() => addPlayer('starters')}>
                             <PlusIcon className="w-4 h-4 mr-2" /> 선발 선수 추가
                         </Button>
                     </div>
@@ -188,11 +252,15 @@ const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating, squ
                     <div className="space-y-3">
                         <PlayerInputs 
                             playerList={substitutes}
-                            onPlayerChange={handleSubstituteChange}
-                            onRemovePlayer={(index) => removePlayerFromList(setSubstitutes, index, 0)}
+                            listType="substitutes"
+                            onPlayerChange={handlePlayerChange}
+                            onRemovePlayer={removePlayer}
                             minPlayers={0}
+                            onDragStart={handleDragStart}
+                            onDragEnd={handleDragEnd}
+                            onDrop={handleDrop}
                         />
-                        <Button type="button" variant="outline" onClick={() => addPlayerToList(setSubstitutes)}>
+                        <Button type="button" variant="outline" onClick={() => addPlayer('substitutes')}>
                             <PlusIcon className="w-4 h-4 mr-2" /> 교체 선수 추가
                         </Button>
                     </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { XPost } from '../types';
 import { Card } from './ui/Card';
 import { XSocialIcon } from './icons/XSocialIcon';
@@ -19,12 +20,15 @@ interface XPostCardProps {
 
 const XPostCard: React.FC<XPostCardProps> = ({ post }) => {
   const embedContainerRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const embedContainer = embedContainerRef.current;
     if (!embedContainer) return;
 
     let isMounted = true;
+    embedContainer.innerHTML = '<div class="text-center py-6"><p class="text-sm text-gray-400">Loading Tweet...</p></div>';
+
 
     const renderTweet = () => {
       if (window.twttr && window.twttr.widgets) {
@@ -65,8 +69,23 @@ const XPostCard: React.FC<XPostCardProps> = ({ post }) => {
     return () => { isMounted = false; };
   }, [post.postUrl]);
 
+  const handleCardClick = () => {
+    navigate(`/x-post/${post.id}`);
+  };
+
+  const handleEmbedClick = (e: React.MouseEvent) => {
+    // Prevent navigating away when clicking on links within the tweet
+    e.stopPropagation();
+  };
+
   return (
-    <Card className="flex flex-col hover:shadow-lg transition-shadow duration-300 overflow-hidden p-0">
+    <Card 
+        className="flex flex-col hover:shadow-lg transition-shadow duration-300 overflow-hidden p-0 cursor-pointer"
+        onClick={handleCardClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleCardClick()}
+    >
         <div className="px-6 pt-6 pb-2">
             <div className="flex justify-between items-start mb-2">
                 <span className="text-xs font-semibold bg-gray-200 text-gray-800 px-2 py-1 rounded-full flex items-center">
@@ -78,11 +97,14 @@ const XPostCard: React.FC<XPostCardProps> = ({ post }) => {
             <p className="text-base text-gray-700 mt-3">{post.description}</p>
         </div>
         
-        <div ref={embedContainerRef} className="tweet-embed-container mt-2 px-6 pb-4">
-            {/* Fallback link if script fails or is slow to load */}
-            <a href={post.postUrl} target="_blank" rel="noopener noreferrer" className="block text-sm text-indigo-600 hover:underline py-6 text-center">
-                Loading Tweet...
-            </a>
+        <div 
+            ref={embedContainerRef} 
+            className="tweet-embed-container mt-2 px-6 pb-4"
+            onClick={handleEmbedClick}
+        >
+            <div className="text-center py-6">
+                <p className="text-sm text-gray-400">Loading Tweet...</p>
+            </div>
         </div>
     </Card>
   );

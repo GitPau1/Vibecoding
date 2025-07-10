@@ -20,10 +20,18 @@ const LoadFromSquadModal: React.FC<LoadFromSquadModalProps> = ({ squadPlayers, o
   const [searchTerm, setSearchTerm] = useState('');
 
   const handleSelectionChange = (playerId: string) => {
-    setSelection(prev => ({
-      ...prev,
-      [playerId]: { ...prev[playerId], selected: !prev[playerId]?.selected }
-    }));
+    setSelection(prev => {
+      const current = prev[playerId];
+      const isCurrentlySelected = !!current?.selected;
+
+      if (isCurrentlySelected) {
+        // Was selected, now unselect
+        return { ...prev, [playerId]: { ...current, selected: false } };
+      } else {
+        // Was not selected, now select and default to starter for rating mode
+        return { ...prev, [playerId]: { selected: true, isStarter: mode === 'rating' ? true : undefined } };
+      }
+    });
   };
 
   const handleStarterChange = (playerId: string) => {

@@ -1,6 +1,6 @@
 
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Vote, Player } from '../types';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
@@ -15,8 +15,7 @@ interface PlayerRatingInputProps {
     onCommentChange: (playerId: number, comment: string) => void;
 }
 
-// Standalone component to prevent re-creation on parent re-render
-const PlayerRatingInput: React.FC<PlayerRatingInputProps> = ({ player, ratingData, onRatingChange, onCommentChange }) => {
+const PlayerRatingInput: React.FC<PlayerRatingInputProps> = React.memo(({ player, ratingData, onRatingChange, onCommentChange }) => {
     const isRated = ratingData?.rating !== undefined;
     const currentRating = ratingData?.rating;
     const currentComment = ratingData?.comment;
@@ -57,7 +56,7 @@ const PlayerRatingInput: React.FC<PlayerRatingInputProps> = ({ player, ratingDat
             )}
         </Card>
     );
-};
+});
 
 
 interface PlayerRatingPageProps {
@@ -68,19 +67,6 @@ interface PlayerRatingPageProps {
 const PlayerRatingPage: React.FC<PlayerRatingPageProps> = ({ vote, onRate }) => {
     const [ratings, setRatings] = useState<{ [key: number]: { rating: number; comment: string | null } }>({});
     const { addToast } = useToast();
-
-    const { starters, substitutes } = useMemo(() => {
-        const starters: Player[] = [];
-        const substitutes: Player[] = [];
-        vote.players?.forEach(p => {
-            if (p.isStarter) {
-                starters.push(p);
-            } else {
-                substitutes.push(p);
-            }
-        });
-        return { starters, substitutes };
-    }, [vote.players]);
 
     const totalPlayers = (vote.players || []).length;
 
@@ -96,18 +82,14 @@ const PlayerRatingPage: React.FC<PlayerRatingPageProps> = ({ vote, onRate }) => 
 
     const handleCommentChange = (playerId: number, comment: string) => {
         setRatings(prev => {
-            // The input is only visible when a rating exists, so prev[playerId] should be valid.
-            // We'll add a safeguard anyway.
             if (!prev[playerId]) {
                 return prev;
             }
-            
-            // Create a new ratings object to maintain immutability.
             return {
                 ...prev,
                 [playerId]: {
-                    ...prev[playerId], // Copy existing properties like rating
-                    comment: comment,  // Update the comment
+                    ...prev[playerId],
+                    comment: comment,
                 }
             };
         });
@@ -124,36 +106,30 @@ const PlayerRatingPage: React.FC<PlayerRatingPageProps> = ({ vote, onRate }) => 
 
     return (
         <div className="space-y-8">
-            <div>
-                <h3 className="text-xl font-bold text-gray-800 mb-4">선발 라인업</h3>
-                <div className="space-y-3">
-                    {starters.map(player => (
-                        <PlayerRatingInput 
-                            key={player.id} 
-                            player={player} 
-                            ratingData={ratings[player.id]}
-                            onRatingChange={handleRatingChange}
-                            onCommentChange={handleCommentChange}
-                        />
-                    ))}
-                </div>
-            </div>
-            {substitutes.length > 0 && (
-                 <div>
-                    <h3 className="text-xl font-bold text-gray-800 mb-4">교체 선수</h3>
-                    <div className="space-y-3">
-                        {substitutes.map(player => (
+            <div className="space-y-4">
+                {vote.players?.map((player, index) => {
+                    const prevPlayer = vote.players?.[index - 1];
+                    const isFirstStarter = player.isStarter && (index === 0 || !prevPlayer?.isStarter);
+                    const isFirstSubstitute = !player.isStarter && (index === 0 || !!prevPlayer?.isStarter);
+
+                    return (
+                        <React.Fragment key={player.id}>
+                            {isFirstStarter && (
+                                <h3 className="text-xl font-bold text-gray-800 mb-2 mt-4">선발 라인업</h3>
+                            )}
+                            {isFirstSubstitute && (
+                                <h3 className="text-xl font-bold text-gray-800 mb-2 mt-4">교체 선수</h3>
+                            )}
                             <PlayerRatingInput 
-                                key={player.id} 
                                 player={player} 
                                 ratingData={ratings[player.id]}
                                 onRatingChange={handleRatingChange}
                                 onCommentChange={handleCommentChange}
                             />
-                        ))}
-                    </div>
-                </div>
-            )}
+                        </React.Fragment>
+                    );
+                })}
+            </div>
             <div className="mt-8 text-right">
                 <Button onClick={handleSubmit} size="lg">평점 제출하기</Button>
             </div>

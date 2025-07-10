@@ -1,7 +1,7 @@
 
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Vote, VoteKind, Player, Article, XPost, SquadPlayer, PlayerPosition } from './types';
 import Header from './components/Header';
 import HomePage from './components/HomePage';
@@ -18,6 +18,10 @@ import ArticlePage from './components/ArticlePage';
 import CreateArticlePage from './components/CreateArticlePage';
 import CreateXPostPage from './components/CreateXPostPage';
 import SquadPage from './components/SquadPage';
+import XPostPage from './components/XPostPage';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { LoginPage } from './components/LoginPage';
+import SignUpPage from './components/SignUpPage';
 
 
 export interface VoteCreationData extends Pick<Vote, 'title' | 'description' | 'type' | 'endDate' | 'imageUrl' | 'players'> {
@@ -29,6 +33,33 @@ export type XPostCreationData = Omit<XPost, 'id' | 'createdAt'>;
 
 export type SquadPlayerCreationData = Omit<SquadPlayer, 'id' | 'createdAt'>;
 
+const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+    const { session, authLoading } = useAuth();
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { addToast } = useToast();
+
+    useEffect(() => {
+        if (!authLoading && !session) {
+            addToast('로그인이 필요한 서비스입니다.', 'info');
+            navigate('/login', { replace: true, state: { from: location } });
+        }
+    }, [authLoading, session, navigate, location, addToast]);
+
+    if (authLoading) {
+        return (
+            <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div>
+            </div>
+        );
+    }
+    
+    if (!session) {
+        return null; // Redirect is handled by the effect
+    }
+
+    return children;
+};
 
 const AppContent: React.FC = () => {
   const [votes, setVotes] = useState<Vote[]>([]);
@@ -36,18 +67,17 @@ const AppContent: React.FC = () => {
   const [articles, setArticles] = useState<Article[]>([]);
   const [xPosts, setXPosts] = useState<XPost[]>([]);
   const [squadPlayers, setSquadPlayers] = useState<SquadPlayer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
   const { addToast } = useToast();
+  const { authLoading } = useAuth();
   
   const isLocalMode = supabase === null;
 
   const fetchAllData = useCallback(async () => {
     if (isLocalMode) return;
     try {
-      setLoading(true);
-      
       // Fetch votes and ratings
       const { data: voteData, error: voteError } = await supabase!
         .from('votes')
@@ -135,42 +165,45 @@ const AppContent: React.FC = () => {
       console.error('Error fetching data:', error);
       addToast(`데이터 로딩 오류: ${error.message}`, 'error');
     } finally {
-      setLoading(false);
+      setDataLoading(false);
     }
   }, [addToast, isLocalMode]);
   
+  // Data loading effect
   useEffect(() => {
-    const isInitialLoad = !votes.length && !ratings.length && !articles.length && !xPosts.length && !squadPlayers.length;
+    if (authLoading) return; // Wait for auth to resolve
 
     if (isLocalMode) {
-      if(isInitialLoad) {
-        setLoading(true);
-        const userVotes = JSON.parse(localStorage.getItem('userVotes') || '{}');
-        const userRatings = JSON.parse(localStorage.getItem('userRatings') || '{}');
-        const userRecommendedArticles = JSON.parse(localStorage.getItem('userRecommendedArticles') || '{}');
-  
-        setVotes(JSON.parse(JSON.stringify(MOCK_VOTES)).map((v: Vote) => ({ ...v, userVote: userVotes[v.id] })));
-        setRatings(JSON.parse(JSON.stringify(MOCK_RATINGS)).map((r: Vote) => ({ ...r, userRatings: userRatings[r.id] })));
-        setArticles(JSON.parse(JSON.stringify(MOCK_ARTICLES)).map((a: Article) => ({ ...a, userRecommended: !!userRecommendedArticles[a.id] })));
-        setXPosts(JSON.parse(JSON.stringify(MOCK_X_POSTS)));
-        setSquadPlayers(JSON.parse(JSON.stringify(MOCK_SQUAD_PLAYERS)));
-        setLoading(false);
-      }
-    } else if (isInitialLoad) {
+      const userVotes = JSON.parse(localStorage.getItem('userVotes') || '{}');
+      const userRatings = JSON.parse(localStorage.getItem('userRatings') || '{}');
+      const userRecommendedArticles = JSON.parse(localStorage.getItem('userRecommendedArticles') || '{}');
+
+      setVotes(JSON.parse(JSON.stringify(MOCK_VOTES)).map((v: Vote) => ({ ...v, userVote: userVotes[v.id] })));
+      setRatings(JSON.parse(JSON.stringify(MOCK_RATINGS)).map((r: Vote) => ({ ...r, userRatings: userRatings[r.id] })));
+      setArticles(JSON.parse(JSON.stringify(MOCK_ARTICLES)).map((a: Article) => ({ ...a, userRecommended: !!userRecommendedArticles[a.id] })));
+      setXPosts(JSON.parse(JSON.stringify(MOCK_X_POSTS)));
+      setSquadPlayers(JSON.parse(JSON.stringify(MOCK_SQUAD_PLAYERS)));
+      setDataLoading(false);
+      addToast('Supabase 연결 실패. 로컬 모드로 실행됩니다.', 'info');
+    } else {
       fetchAllData();
     }
-    
-    window.scrollTo(0, 0);
+  }, [authLoading, isLocalMode, fetchAllData, addToast]);
 
-  }, [isLocalMode, location.pathname, fetchAllData, votes.length, ratings.length, articles.length, xPosts.length, squadPlayers.length]);
-
+  // Scroll to top on navigation
   useEffect(() => {
-    if (isLocalMode) {
-      addToast('Supabase 연결 실패. 로컬 모드로 실행됩니다.', 'info');
-    }
-  }, [isLocalMode, addToast]);
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
-  const handleVote = useCallback(async (voteId: string, optionId: string) => {
+  if (authLoading || dataLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-gray-50">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div>
+      </div>
+    );
+  }
+
+  const handleVote = async (voteId: string, optionId: string) => {
     const vote = votes.find(v => v.id === voteId);
     if (!vote) return;
     const option = vote.options.find(o => o.id === optionId);
@@ -204,9 +237,9 @@ const AppContent: React.FC = () => {
       return;
     }
     updateLocalState();
-  }, [votes, addToast, isLocalMode]);
+  };
   
-  const handlePlayerRatingSubmit = useCallback(async (ratingId: string, playerRatings: { [playerId: number]: { rating: number; comment: string | null; }; }) => {
+  const handlePlayerRatingSubmit = async (ratingId: string, playerRatings: { [playerId: number]: { rating: number; comment: string | null; }; }) => {
     const updateLocalState = () => {
         setRatings(prevRatings =>
             prevRatings.map(rating => {
@@ -273,9 +306,9 @@ const AppContent: React.FC = () => {
     } catch (error: any) {
         addToast(`평점 제출 실패: ${error.message}`, 'error');
     }
-  }, [addToast, ratings, isLocalMode]);
+  };
 
-  const handleCreateVote = useCallback(async (newVoteData: VoteCreationData) => {
+  const handleCreateVote = async (newVoteData: VoteCreationData) => {
     const commonLogic = (newVote: Vote) => {
         setVotes((prev: Vote[]) => [newVote, ...prev]);
         navigate('/');
@@ -341,9 +374,9 @@ const AppContent: React.FC = () => {
     } catch (error: any) {
         addToast(`투표 생성 실패: ${error.message}`, 'error');
     }
-  }, [navigate, addToast, isLocalMode]);
+  };
 
-  const handleCreateRating = useCallback(async (newRatingData: VoteCreationData) => {
+  const handleCreateRating = async (newRatingData: VoteCreationData) => {
      const commonLogic = (newRating: Vote) => {
         setRatings(prev => [newRating, ...prev]);
         navigate('/');
@@ -411,9 +444,9 @@ const AppContent: React.FC = () => {
     } catch (error: any) {
         addToast(`평점 생성 실패: ${error.message}`, 'error');
     }
-  }, [navigate, addToast, isLocalMode]);
+  };
 
-  const handleCreateArticle = useCallback(async (newArticleData: ArticleCreationData) => {
+  const handleCreateArticle = async (newArticleData: ArticleCreationData) => {
     const commonLogic = (newArticle: Article) => {
       setArticles(prev => [newArticle, ...prev]);
       navigate('/');
@@ -457,9 +490,9 @@ const AppContent: React.FC = () => {
       addToast(`아티클 생성 실패: ${error.message}`, 'error');
     }
 
-  }, [isLocalMode, navigate, addToast]);
+  };
 
-  const handleRecommendArticle = useCallback(async (articleId: string) => {
+  const handleRecommendArticle = async (articleId: string) => {
     const recommendedArticles = JSON.parse(localStorage.getItem('userRecommendedArticles') || '{}');
     if (recommendedArticles[articleId]) {
       addToast('이미 추천한 아티클입니다.', 'info');
@@ -488,9 +521,9 @@ const AppContent: React.FC = () => {
     }
     updateLocalState();
 
-  }, [addToast, isLocalMode]);
+  };
 
-  const handleViewArticle = useCallback(async (articleId: string) => {
+  const handleViewArticle = async (articleId: string) => {
     const viewedArticles = JSON.parse(sessionStorage.getItem('viewedArticles') || '{}');
     if (viewedArticles[articleId]) {
       return; // Already viewed in this session
@@ -514,9 +547,9 @@ const AppContent: React.FC = () => {
       console.error(`Failed to increment view for article ${articleId}:`, error.message);
     }
     updateLocalState();
-  }, [isLocalMode]);
+  };
 
-  const handleCreateXPost = useCallback(async (newXPostData: XPostCreationData) => {
+  const handleCreateXPost = async (newXPostData: XPostCreationData) => {
     const commonLogic = (newPost: XPost) => {
       setXPosts((prev: XPost[]) => [newPost, ...prev]);
       navigate('/');
@@ -552,9 +585,9 @@ const AppContent: React.FC = () => {
     } catch (error: any) {
       addToast(`소식 등록 실패: ${error.message}`, 'error');
     }
-  }, [isLocalMode, navigate, addToast]);
+  };
 
-  const handleCreateBugReport = useCallback(async ({ title, description, url, screenshotFile }: { title: string; description: string; url: string; screenshotFile: File | null; }) => {
+  const handleCreateBugReport = async ({ title, description, url, screenshotFile }: { title: string; description: string; url: string; screenshotFile: File | null; }) => {
     if (isLocalMode) {
       addToast('로컬 모드에서는 오류 제보를 할 수 없습니다.', 'error');
       return;
@@ -593,9 +626,9 @@ const AppContent: React.FC = () => {
       addToast(`오류 제보 제출 실패: ${error.message}`, 'error');
       console.error('Bug report submission error:', error);
     }
-  }, [isLocalMode, addToast, navigate]);
+  };
 
-  const handleCreateSquadPlayer = useCallback(async (playerData: SquadPlayerCreationData) => {
+  const handleCreateSquadPlayer = async (playerData: SquadPlayerCreationData) => {
     if (isLocalMode) {
       const newPlayer: SquadPlayer = {
         ...playerData,
@@ -629,9 +662,9 @@ const AppContent: React.FC = () => {
     } catch (error: any) {
       addToast(`선수 추가 실패: ${error.message}`, 'error');
     }
-  }, [isLocalMode, addToast]);
+  };
 
-  const handleUpdateSquadPlayer = useCallback(async (playerId: string, playerData: SquadPlayerCreationData) => {
+  const handleUpdateSquadPlayer = async (playerId: string, playerData: SquadPlayerCreationData) => {
      if (isLocalMode) {
       setSquadPlayers(prev => prev.map(p => p.id === playerId ? { ...p, ...playerData, id: playerId, createdAt: p.createdAt } : p).sort((a,b) => a.number - b.number));
       addToast('선수 정보가 수정되었습니다.', 'success');
@@ -660,9 +693,9 @@ const AppContent: React.FC = () => {
     } catch (error: any) {
       addToast(`선수 정보 수정 실패: ${error.message}`, 'error');
     }
-  }, [isLocalMode, addToast]);
+  };
 
-  const handleDeleteSquadPlayer = useCallback(async (playerId: string) => {
+  const handleDeleteSquadPlayer = async (playerId: string) => {
      if (isLocalMode) {
       setSquadPlayers(prev => prev.filter(p => p.id !== playerId));
       addToast('선수가 삭제되었습니다.', 'success');
@@ -677,41 +710,32 @@ const AppContent: React.FC = () => {
     } catch (error: any) {
       addToast(`선수 삭제 실패: ${error.message}`, 'error');
     }
-  }, [isLocalMode, addToast]);
+  };
 
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
       <main className="container mx-auto max-w-7xl p-4 sm:p-6 lg:p-8 flex-grow">
         <Routes>
-          <Route
-            path="/"
-            element={
-              <HomePage
-                votes={votes}
-                ratings={ratings}
-                articles={articles}
-                xPosts={xPosts}
-                loading={loading}
-              />
-            }
-          />
-          <Route
-            path="/vote/:id"
-            element={<VotePage votes={votes} onVote={handleVote} onRatePlayers={() => {}} />}
-          />
-          <Route
-            path="/rating/:id"
-            element={<VotePage ratings={ratings} onVote={handleVote} onRatePlayers={handlePlayerRatingSubmit} />}
-          />
-          <Route path="/create" element={<CreateHubPage />} />
-          <Route path="/create/vote" element={<CreateVotePage onCreateVote={handleCreateVote} squadPlayers={squadPlayers} />} />
-          <Route path="/create/rating" element={<CreateRatingPage onCreateRating={handleCreateRating} squadPlayers={squadPlayers} />} />
+          <Route path="/" element={<HomePage votes={votes} ratings={ratings} articles={articles} xPosts={xPosts} />} />
+          <Route path="/vote/:id" element={<VotePage votes={votes} onVote={handleVote} onRatePlayers={() => {}} />} />
+          <Route path="/rating/:id" element={<VotePage ratings={ratings} onVote={handleVote} onRatePlayers={handlePlayerRatingSubmit} />} />
           <Route path="/article/:id" element={<ArticlePage articles={articles} onRecommend={handleRecommendArticle} onView={handleViewArticle} />} />
-          <Route path="/create/article" element={<CreateArticlePage onCreateArticle={handleCreateArticle} />} />
-          <Route path="/create/x-post" element={<CreateXPostPage onCreateXPost={handleCreateXPost} />} />
-          <Route path="/squad" element={<SquadPage players={squadPlayers} onAddPlayer={handleCreateSquadPlayer} onUpdatePlayer={handleUpdateSquadPlayer} onDeletePlayer={handleDeleteSquadPlayer} />} />
+          <Route path="/x-post/:id" element={<XPostPage xPosts={xPosts} />} />
           <Route path="/report-bug" element={<BugReportPage onSubmit={handleCreateBugReport} />} />
+          
+          {/* Auth Routes */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignUpPage />} />
+
+          {/* Protected Routes */}
+          <Route path="/create" element={<ProtectedRoute><CreateHubPage /></ProtectedRoute>} />
+          <Route path="/create/vote" element={<ProtectedRoute><CreateVotePage onCreateVote={handleCreateVote} squadPlayers={squadPlayers} /></ProtectedRoute>} />
+          <Route path="/create/rating" element={<ProtectedRoute><CreateRatingPage onCreateRating={handleCreateRating} squadPlayers={squadPlayers} /></ProtectedRoute>} />
+          <Route path="/create/article" element={<ProtectedRoute><CreateArticlePage onCreateArticle={handleCreateArticle} /></ProtectedRoute>} />
+          <Route path="/create/x-post" element={<ProtectedRoute><CreateXPostPage onCreateXPost={handleCreateXPost} /></ProtectedRoute>} />
+          <Route path="/squad" element={<ProtectedRoute><SquadPage players={squadPlayers} onAddPlayer={handleCreateSquadPlayer} onUpdatePlayer={handleUpdateSquadPlayer} onDeletePlayer={handleDeleteSquadPlayer} /></ProtectedRoute>} />
+
         </Routes>
       </main>
       <footer className="py-8 mt-8 border-t bg-gray-100">
@@ -731,7 +755,9 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <ToastProvider>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </ToastProvider>
   );
 };

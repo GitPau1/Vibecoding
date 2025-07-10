@@ -12,7 +12,6 @@ interface HomePageProps {
   ratings: Vote[];
   articles: Article[];
   xPosts: XPost[];
-  loading: boolean;
 }
 
 type CarouselItem = {
@@ -24,7 +23,7 @@ type CarouselItem = {
   category: string;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ votes, ratings, articles, xPosts, loading }) => {
+const HomePage: React.FC<HomePageProps> = ({ votes, ratings, articles, xPosts }) => {
   const [activeTab, setActiveTab] = useState<'match' | 'vote' | 'articles' | 'x-posts'>('match');
 
   const matchItems = useMemo(() => {
@@ -49,7 +48,7 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, articles, xPosts, l
         ...votes.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/vote/${item.id}`, category: item.type })),
         ...ratings.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/rating/${item.id}`, category: item.type })),
         ...articles.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/article/${item.id}`, category: '아티클' })),
-        ...xPosts.map(item => ({ id: item.id, title: item.description, imageUrl: undefined, createdAt: item.createdAt, path: item.postUrl, category: '최신 소식' })),
+        ...xPosts.map(item => ({ id: item.id, title: item.description, imageUrl: undefined, createdAt: item.createdAt, path: `/x-post/${item.id}`, category: '최신 소식' })),
     ];
     return allContent
         .filter(item => item.createdAt)
@@ -65,38 +64,10 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, articles, xPosts, l
                 : 'text-gray-500 hover:text-gray-800'
             }`;
   }
-  
-  const LoadingSkeleton = () => (
-      <div className="grid grid-cols-1 md:grid-cols-2 desktop:grid-cols-3 gap-6">
-        {[...Array(3)].map((_, i) => (
-            <div key={i} className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 animate-pulse">
-                <div className="aspect-video bg-gray-200 rounded-t-2xl -m-6 mb-6"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
-                <div className="h-6 bg-gray-300 rounded w-3/4 mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded w-full mb-4"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                <div className="border-t mt-6 pt-3">
-                    <div className="flex justify-between">
-                        <div className="h-4 bg-gray-200 rounded w-1/3"></div>
-                        <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-                    </div>
-                </div>
-            </div>
-        ))}
-      </div>
-  );
-  
-  const CarouselSkeleton = () => (
-    <div className="h-[240px] md:h-[320px] desktop:h-[400px] w-full bg-gray-200 animate-pulse rounded-3xl"></div>
-  );
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
-      {loading ? (
-        <CarouselSkeleton />
-      ) : (
-        recentItems.length > 0 && <Carousel items={recentItems} />
-      )}
+      {recentItems.length > 0 && <Carousel items={recentItems} />}
       
       <div className="p-1.5 bg-gray-100 rounded-full w-full max-w-2xl mx-auto">
         <nav className="flex items-center space-x-1" aria-label="Tabs">
@@ -108,7 +79,6 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, articles, xPosts, l
       </div>
 
       <div className="mt-8">
-       {loading ? <LoadingSkeleton /> : (
          <>
             {activeTab === 'match' && (
               <section>
@@ -175,7 +145,6 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, articles, xPosts, l
               </section>
             )}
          </>
-       )}
       </div>
     </div>
   );
