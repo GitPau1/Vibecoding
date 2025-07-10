@@ -120,7 +120,7 @@ const SignUpPage: React.FC = () => {
       <Card className="p-6 md:p-8">
         <h2 className="text-2xl font-bold mb-1 text-center">회원가입</h2>
         <p className="text-gray-500 mb-6 text-center">몇 단계만 거치면 바로 시작할 수 있습니다.</p>
-        <form onSubmit={handleSignUp} className="space-y-4">
+        <form onSubmit={handleSignUp} noValidate className="space-y-4">
           <div>
             <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">아이디</label>
             <Input 

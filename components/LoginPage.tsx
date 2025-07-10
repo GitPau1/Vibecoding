@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Card } from './ui/Card';
@@ -56,7 +55,7 @@ export const LoginPage: React.FC = () => {
       <Card className="p-6 md:p-8">
         <h2 className="text-2xl font-bold mb-1 text-center">로그인</h2>
         <p className="text-gray-500 mb-6 text-center">SoccerVote에 오신 것을 환영합니다.</p>
-        <form onSubmit={handleLogin} className="space-y-6">
+        <form onSubmit={handleLogin} noValidate className="space-y-6">
           <div>
             <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">아이디</label>
             <Input id="username" type="text" value={username} onChange={e => setUsername(e.target.value)} required autoComplete="username" />
