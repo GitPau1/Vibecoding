@@ -20,7 +20,7 @@ import CreateXPostPage from './components/CreateXPostPage';
 import SquadPage from './components/SquadPage';
 import XPostPage from './components/XPostPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { LoginPage } from './components/LoginPage';
+import LoginPage from './components/LoginPage';
 import SignUpPage from './components/SignUpPage';
 
 

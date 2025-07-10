@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Card } from './ui/Card';
@@ -7,7 +8,7 @@ import { Button } from './ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 
-export const LoginPage: React.FC = () => {
+const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { signIn, session, authLoading } = useAuth();
@@ -58,11 +59,11 @@ export const LoginPage: React.FC = () => {
         <form onSubmit={handleLogin} noValidate className="space-y-6">
           <div>
             <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">아이디</label>
-            <Input id="username" type="text" value={username} onChange={e => setUsername(e.target.value)} required autoComplete="username" />
+            <Input id="username" name="username" type="text" value={username} onChange={e => setUsername(e.target.value)} required autoComplete="username" />
           </div>
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">비밀번호</label>
-            <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
+            <Input id="password" name="password" type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
           </div>
           <Button type="submit" disabled={loading} className="w-full">
             {loading ? '로그인 중...' : '로그인'}

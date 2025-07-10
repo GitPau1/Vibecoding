@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card } from './ui/Card';
@@ -125,6 +126,7 @@ const SignUpPage: React.FC = () => {
             <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">아이디</label>
             <Input 
               id="username" 
+              name="username"
               type="text" 
               value={username} 
               onChange={e => setUsername(e.target.value)} 
@@ -141,12 +143,13 @@ const SignUpPage: React.FC = () => {
           </div>
           <div>
             <label htmlFor="nickname" className="block text-sm font-medium text-gray-700 mb-1">닉네임</label>
-            <Input id="nickname" type="text" value={nickname} onChange={e => setNickname(e.target.value)} required minLength={2} maxLength={20} autoComplete="nickname" />
+            <Input id="nickname" name="nickname" type="text" value={nickname} onChange={e => setNickname(e.target.value)} required minLength={2} maxLength={20} autoComplete="nickname" />
           </div>
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">비밀번호</label>
             <Input 
               id="password" 
+              name="password"
               type="password" 
               value={password} 
               onChange={e => setPassword(e.target.value)} 
@@ -165,6 +168,7 @@ const SignUpPage: React.FC = () => {
             <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">비밀번호 확인</label>
             <Input 
               id="confirmPassword" 
+              name="confirmPassword"
               type="password" 
               value={confirmPassword} 
               onChange={e => setConfirmPassword(e.target.value)} 
