@@ -41,16 +41,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const isLocalMode = supabase === null;
 
   useEffect(() => {
-    // This effect handles initializing the auth state on app load.
     if (isLocalMode) {
-      // Mock auth logic
       try {
         const storedSession = localStorage.getItem(MOCK_SESSION_KEY);
         if (storedSession) {
           const mockSession: AuthSession = JSON.parse(storedSession);
           setSession(mockSession);
-
-          // In local mode, the profile is part of the session's user object
           const storedProfile = mockSession.user?.user_metadata as UserProfile;
           if (storedProfile) {
             setProfile(storedProfile);
@@ -61,43 +57,51 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         localStorage.removeItem(MOCK_SESSION_KEY);
       }
       setAuthLoading(false);
-    } else {
-      // Supabase auth logic
-      const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-        // First, set the session and signal that the initial auth check is complete.
-        setSession(session as AuthSession | null);
-        setAuthLoading(false);
+      return;
+    }
 
-        // Then, fetch the user profile without blocking the main loading gate.
-        if (session?.user) {
-          try {
-            const { data: userProfile, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-    
-            if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found, which is not an error here.
-                console.error("Error fetching profile:", error);
-                setProfile(null);
-            } else {
-                setProfile(userProfile);
-            }
-          } catch(e) {
-            console.error("An unexpected error occurred while fetching the profile:", e);
-            setProfile(null);
+    // Safety net timeout to prevent infinite loading
+    const authTimeout = setTimeout(() => {
+        console.warn("Authentication check timed out after 5 seconds.");
+        addToast("인증 서비스 응답이 지연됩니다. 로그아웃 상태로 진행합니다.", "info");
+        setAuthLoading(false);
+    }, 5000);
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      // If the listener fires, it means authentication is resolved, so clear the timeout.
+      clearTimeout(authTimeout);
+
+      setSession(session as AuthSession | null);
+      setAuthLoading(false); // Signal that the initial auth check is complete.
+
+      if (session?.user) {
+        try {
+          const { data: userProfile, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+  
+          if (error && error.code !== 'PGRST116') {
+              console.error("Error fetching profile:", error);
+              setProfile(null);
+          } else {
+              setProfile(userProfile);
           }
-        } else {
-          // If there's no session, there's no profile to fetch.
+        } catch(e) {
+          console.error("An unexpected error occurred while fetching the profile:", e);
           setProfile(null);
         }
-      });
-  
-      return () => {
-        authListener.subscription.unsubscribe();
-      };
-    }
-  }, [isLocalMode]);
+      } else {
+        setProfile(null);
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+      clearTimeout(authTimeout);
+    };
+  }, [isLocalMode, addToast]);
 
 
   const signUp = async ({ username, password, nickname }: { username: string; password: string; nickname: string; }) => {
