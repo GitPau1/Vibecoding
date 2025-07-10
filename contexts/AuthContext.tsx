@@ -64,24 +64,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } else {
       // Supabase auth logic
       const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        // First, set the session and signal that the initial auth check is complete.
         setSession(session as AuthSession | null);
+        setAuthLoading(false);
+
+        // Then, fetch the user profile without blocking the main loading gate.
         if (session?.user) {
-          const { data: userProfile, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-  
-          if (error && error.code !== 'PGRST116') {
-              console.error("Error fetching profile:", error);
-              setProfile(null);
-          } else {
-              setProfile(userProfile);
+          try {
+            const { data: userProfile, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
+    
+            if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found, which is not an error here.
+                console.error("Error fetching profile:", error);
+                setProfile(null);
+            } else {
+                setProfile(userProfile);
+            }
+          } catch(e) {
+            console.error("An unexpected error occurred while fetching the profile:", e);
+            setProfile(null);
           }
         } else {
+          // If there's no session, there's no profile to fetch.
           setProfile(null);
         }
-        setAuthLoading(false);
       });
   
       return () => {
