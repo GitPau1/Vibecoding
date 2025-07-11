@@ -58,8 +58,6 @@ const VotePage: React.FC<VotePageProps> = ({ votes, ratings, onVote, onRatePlaye
 
   const renderVoteComponent = () => {
     switch (vote.type) {
-      case VoteKind.MATCH:
-        return <MatchVote vote={vote} onVote={(optionId) => onVote(vote.id, optionId)} />;
       case VoteKind.PLAYER:
         return <PlayerVote vote={vote} onVote={(optionId) => onVote(vote.id, optionId)} />;
       case VoteKind.TOPIC:

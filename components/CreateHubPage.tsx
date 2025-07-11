@@ -1,5 +1,4 @@
 
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from './ui/Card';
@@ -16,19 +15,19 @@ const CreateHubPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Card 
           className="p-8 text-center cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col items-center justify-center"
-          onClick={() => navigate('/create/vote')}
+          onClick={() => navigate('/matches')}
         >
-          <div className="text-5xl mb-4">🗳️</div>
-          <h3 className="text-xl font-bold text-gray-900">투표 만들기</h3>
-          <p className="text-gray-600 mt-2 text-sm">경기 결과, 찬반 등 다양한 주제로 투표를 시작하세요.</p>
+          <div className="text-5xl mb-4">🗓️</div>
+          <h3 className="text-xl font-bold text-gray-900">경기 관리</h3>
+          <p className="text-gray-600 mt-2 text-sm">경기를 등록하고 스코어 예측, 선수 평점 콘텐츠를 자동 생성합니다.</p>
         </Card>
         <Card 
           className="p-8 text-center cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col items-center justify-center"
-          onClick={() => navigate('/create/rating')}
+          onClick={() => navigate('/create/vote')}
         >
-          <div className="text-5xl mb-4">⭐</div>
-          <h3 className="text-xl font-bold text-gray-900">선수 평점 만들기</h3>
-          <p className="text-gray-600 mt-2 text-sm">경기별 선수들의 활약을 평가하고 공유해보세요.</p>
+          <div className="text-5xl mb-4">🗳️</div>
+          <h3 className="text-xl font-bold text-gray-900">커뮤니티 투표</h3>
+          <p className="text-gray-600 mt-2 text-sm">최고의 선수, 찬반 등 다양한 주제로 투표를 시작하세요.</p>
         </Card>
         <Card 
           className="p-8 text-center cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col items-center justify-center"

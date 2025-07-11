@@ -1,9 +1,6 @@
 
-
-import { Session } from '@supabase/supabase-js';
-
 export enum VoteKind {
-  MATCH = '경기 결과 예측',
+  MATCH_PREDICTION = '경기 스코어 예측',
   PLAYER = '베스트 플레이어',
   TOPIC = '찬반 투표',
   RATING = '선수 평점',
@@ -25,6 +22,15 @@ export interface Player {
     isStarter?: boolean;
 }
 
+export interface UserScorePrediction {
+  id: string;
+  vote_id: string;
+  user_id: string;
+  score_a: number;
+  score_b: number;
+  created_at?: string;
+}
+
 export interface Vote {
   id:string;
   title: string;
@@ -36,8 +42,24 @@ export interface Vote {
   createdAt: string;
   userVote?: string; // The id of the option the user voted for
   userRatings?: { [key: number]: { rating: number; comment: string | null } };
+  userScorePrediction?: { scoreA: number, scoreB: number };
+  scorePredictions?: UserScorePrediction[];
   players?: Player[];
   user_id?: string;
+  match_id?: string;
+}
+
+export interface Match {
+  id: string;
+  created_at: string;
+  competition: string;
+  home_team: string;
+  away_team: string;
+  match_time: string;
+  home_score: number | null;
+  away_score: number | null;
+  is_finished: boolean;
+  user_id: string;
 }
 
 // New Article Type
@@ -86,5 +108,3 @@ export interface Profile {
   username: string;
   nickname: string;
 }
-
-export type AuthSession = Session;

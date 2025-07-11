@@ -20,12 +20,28 @@ const VoteCard: React.FC<VoteCardProps> = ({ vote }) => {
   const diffTime = Math.abs(endDate.getTime() - now.getTime());
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   
-  const totalVotes = vote.type === VoteKind.RATING
-    ? (vote.options[0]?.ratingCount || 0)
-    : vote.options.reduce((sum, option) => sum + option.votes, 0);
+  let totalVotes = 0;
+  if (vote.type === VoteKind.RATING) {
+      totalVotes = vote.options[0]?.ratingCount || 0;
+  } else if (vote.type === VoteKind.MATCH_PREDICTION) {
+      totalVotes = vote.scorePredictions?.length || 0;
+  } else {
+      totalVotes = vote.options.reduce((sum, option) => sum + option.votes, 0);
+  }
   
   const handleSelectVote = () => {
-    const path = vote.type === VoteKind.RATING ? `/rating/${vote.id}` : `/vote/${vote.id}`;
+    let path;
+    switch (vote.type) {
+        case VoteKind.RATING:
+            path = `/rating/${vote.id}`;
+            break;
+        case VoteKind.MATCH_PREDICTION:
+            path = `/prediction/${vote.id}`;
+            break;
+        default:
+            path = `/vote/${vote.id}`;
+            break;
+    }
     navigate(path);
   }
 

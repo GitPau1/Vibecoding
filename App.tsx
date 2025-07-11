@@ -1,17 +1,17 @@
 
 
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { Vote, VoteKind, Player, Article, XPost, SquadPlayer, PlayerPosition } from './types';
+import { Vote, VoteKind, Player, Article, XPost, SquadPlayer, PlayerPosition, UserScorePrediction, Match } from './types';
 import Header from './components/Header';
 import HomePage from './components/HomePage';
 import VotePage from './components/VotePage';
 import CreateVotePage from './components/CreateVotePage';
 import CreateHubPage from './components/CreateHubPage';
-import CreateRatingPage from './components/CreateRatingPage';
 import { ToastProvider, useToast } from './contexts/ToastContext';
 import { supabase, Database } from './lib/supabaseClient';
-import { MOCK_VOTES, MOCK_RATINGS, MOCK_ARTICLES, MOCK_X_POSTS, MOCK_SQUAD_PLAYERS } from './constants';
+import { MOCK_VOTES, MOCK_RATINGS, MOCK_ARTICLES, MOCK_X_POSTS, MOCK_SQUAD_PLAYERS, MOCK_MATCHES } from './constants';
 import { BugIcon } from './components/icons/BugIcon';
 import BugReportPage from './components/BugReportPage';
 import ArticlePage from './components/ArticlePage';
@@ -23,9 +23,11 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LoginPage from './components/LoginPage';
 import SignUpPage from './components/SignUpPage';
 import AuthModal from './components/AuthModal';
+import PredictionPage from './components/PredictionPage';
+import MatchManagementPage from './components/MatchManagementPage';
 
 
-export interface VoteCreationData extends Pick<Vote, 'title' | 'description' | 'type' | 'endDate' | 'imageUrl' | 'players'> {
+export interface VoteCreationData extends Pick<Vote, 'title' | 'description' | 'type' | 'endDate' | 'imageUrl' | 'players' | 'match_id'> {
   options: {label: string}[];
 }
 
@@ -33,6 +35,9 @@ export type ArticleCreationData = Omit<Article, 'id' | 'createdAt' | 'recommenda
 export type XPostCreationData = Omit<XPost, 'id' | 'createdAt' | 'user_id'>;
 
 export type SquadPlayerCreationData = Omit<SquadPlayer, 'id' | 'createdAt'>;
+export type MatchCreationData = Omit<Match, 'id' | 'created_at' | 'home_score' | 'away_score' | 'is_finished' | 'user_id'>;
+export type MatchResultData = { home_score: number; away_score: number; players: Player[]; };
+
 
 const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
     const { session, authLoading } = useAuth();
@@ -68,6 +73,7 @@ const AppContent: React.FC = () => {
   const [articles, setArticles] = useState<Article[]>([]);
   const [xPosts, setXPosts] = useState<XPost[]>([]);
   const [squadPlayers, setSquadPlayers] = useState<SquadPlayer[]>([]);
+  const [matches, setMatches] = useState<Match[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const navigate = useNavigate();
@@ -80,18 +86,41 @@ const AppContent: React.FC = () => {
   const fetchAllData = useCallback(async () => {
     if (isLocalMode) return;
     try {
+      setDataLoading(true);
       // Fetch votes and ratings
       const { data: voteData, error: voteError } = await supabase!
         .from('votes')
         .select(`
-          id, title, description, type, image_url, end_date, created_at, players, user_id,
+          id, title, description, type, image_url, end_date, created_at, players, user_id, match_id,
           options:vote_options(id, label, votes, rating_count, comments)
         `)
         .order('created_at', { ascending: false });
       if (voteError) throw voteError;
+      
+      const { data: scorePredictionData, error: spError } = await supabase
+        .from('score_predictions')
+        .select('*');
+      if (spError) throw spError;
+      
+      const { data: matchData, error: matchError } = await supabase
+        .from('matches')
+        .select('*')
+        .order('match_time', { ascending: false });
+      if (matchError) throw matchError;
+      setMatches(matchData);
 
       const userVotes = JSON.parse(localStorage.getItem('userVotes') || '{}');
       const userRatings = JSON.parse(localStorage.getItem('userRatings') || '{}');
+      const userScorePredictions = JSON.parse(localStorage.getItem('userScorePredictions') || '{}');
+
+      const allPredictionsMap = scorePredictionData.reduce((acc: {[key:string]: UserScorePrediction[]}, p) => {
+          if (!acc[p.vote_id]) {
+              acc[p.vote_id] = [];
+          }
+          acc[p.vote_id].push(p as UserScorePrediction);
+          return acc;
+      }, {});
+
 
       const allVotes: Vote[] = voteData.map((v: any) => ({
         id: v.id,
@@ -103,6 +132,7 @@ const AppContent: React.FC = () => {
         imageUrl: v.image_url,
         players: v.players as Player[] | null,
         user_id: v.user_id,
+        match_id: v.match_id,
         options: v.options.map((o: any) => ({
           id: o.id,
           label: o.label,
@@ -112,6 +142,8 @@ const AppContent: React.FC = () => {
         })),
         userVote: userVotes[v.id],
         userRatings: userRatings[v.id],
+        userScorePrediction: userScorePredictions[v.id],
+        scorePredictions: allPredictionsMap[v.id] || [],
       }));
       setVotes(allVotes.filter(v => v.type !== VoteKind.RATING));
       setRatings(allVotes.filter(v => v.type === VoteKind.RATING));
@@ -181,9 +213,11 @@ const AppContent: React.FC = () => {
     if (isLocalMode) {
       const userVotes = JSON.parse(localStorage.getItem('userVotes') || '{}');
       const userRatings = JSON.parse(localStorage.getItem('userRatings') || '{}');
+      const userScorePredictions = JSON.parse(localStorage.getItem('userScorePredictions') || '{}');
       const userRecommendedArticles = JSON.parse(localStorage.getItem('userRecommendedArticles') || '{}');
-
-      setVotes(JSON.parse(JSON.stringify(MOCK_VOTES)).map((v: Vote) => ({ ...v, userVote: userVotes[v.id] })));
+      
+      setMatches(JSON.parse(JSON.stringify(MOCK_MATCHES)));
+      setVotes(JSON.parse(JSON.stringify(MOCK_VOTES)).map((v: Vote) => ({ ...v, userVote: userVotes[v.id], userScorePrediction: userScorePredictions[v.id] })));
       setRatings(JSON.parse(JSON.stringify(MOCK_RATINGS)).map((r: Vote) => ({ ...r, userRatings: userRatings[r.id] })));
       setArticles(JSON.parse(JSON.stringify(MOCK_ARTICLES)).map((a: Article) => ({ ...a, userRecommended: !!userRecommendedArticles[a.id] })));
       setXPosts(JSON.parse(JSON.stringify(MOCK_X_POSTS)));
@@ -207,6 +241,47 @@ const AppContent: React.FC = () => {
       </div>
     );
   }
+  
+  const createVoteInternal = async (voteData: VoteCreationData): Promise<Vote | null> => {
+      const voteInsertPayload: Database['public']['Tables']['votes']['Insert'] = {
+          title: voteData.title,
+          description: voteData.description ?? null,
+          type: voteData.type,
+          end_date: voteData.endDate,
+          image_url: voteData.imageUrl ?? null,
+          players: voteData.players ?? null,
+          user_id: session!.user.id,
+          match_id: voteData.match_id ?? null,
+      };
+
+      const { data: vote, error: voteError } = await supabase!.from('votes').insert(voteInsertPayload).select().single();
+      if (voteError) throw voteError;
+
+      type VoteOptionInsert = Database['public']['Tables']['vote_options']['Insert'];
+      const optionsToInsert: VoteOptionInsert[] = voteData.options.map(opt => ({
+          vote_id: vote.id,
+          label: opt.label,
+      }));
+      
+      const { data: insertedOptions, error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert).select();
+      if (optionsError) throw optionsError;
+      
+      return {
+          id: vote.id,
+          createdAt: vote.created_at,
+          title: vote.title,
+          description: vote.description || undefined,
+          type: vote.type as VoteKind,
+          endDate: vote.end_date,
+          imageUrl: vote.image_url || undefined,
+          players: vote.players || undefined,
+          user_id: vote.user_id,
+          match_id: vote.match_id || undefined,
+          options: insertedOptions.map(o => ({
+              id: o.id, label: o.label, votes: o.votes, ratingCount: o.rating_count, comments: o.comments || []
+          })),
+      };
+  };
 
   const handleVote = async (voteId: string, optionId: string) => {
     if (!session) {
@@ -247,6 +322,64 @@ const AppContent: React.FC = () => {
       return;
     }
     updateLocalState();
+  };
+
+  const handlePredictScore = async (voteId: string, scoreA: number, scoreB: number) => {
+    if (!session) {
+        setIsAuthModalOpen(true);
+        return;
+    }
+
+    const predictionData = { scoreA, scoreB };
+
+    const updateLocalState = () => {
+        setVotes(prevVotes =>
+            prevVotes.map(v => {
+                if (v.id === voteId) {
+                    const newPrediction: UserScorePrediction = {
+                        id: `local-${Date.now()}`,
+                        vote_id: voteId,
+                        user_id: session.user.id,
+                        score_a: scoreA,
+                        score_b: scoreB,
+                        created_at: new Date().toISOString()
+                    };
+                    return {
+                        ...v,
+                        userScorePrediction: predictionData,
+                        scorePredictions: [...(v.scorePredictions || []), newPrediction],
+                    };
+                }
+                return v;
+            })
+        );
+        const userScorePredictions = JSON.parse(localStorage.getItem('userScorePredictions') || '{}');
+        userScorePredictions[voteId] = predictionData;
+        localStorage.setItem('userScorePredictions', JSON.stringify(userScorePredictions));
+        addToast('스코어 예측이 제출되었습니다.', 'success');
+    };
+    
+    if (isLocalMode) {
+        updateLocalState();
+        return;
+    }
+    
+    const { error } = await supabase!.from('score_predictions').insert({
+        vote_id: voteId,
+        user_id: session.user.id,
+        score_a: scoreA,
+        score_b: scoreB
+    });
+
+    if (error) {
+        if (error.code === '23505') { // Unique constraint violation
+            addToast('이미 이 경기에 대한 예측을 제출했습니다.', 'error');
+        } else {
+            addToast(`스코어 예측 제출 실패: ${error.message}`, 'error');
+        }
+        return;
+    }
+    await fetchAllData();
   };
   
   const handlePlayerRatingSubmit = async (ratingId: string, playerRatings: { [playerId: number]: { rating: number; comment: string | null; }; }) => {
@@ -316,7 +449,8 @@ const AppContent: React.FC = () => {
         const dbError = results.find(res => res && res.error);
         if (dbError && dbError.error) throw dbError.error;
 
-        updateLocalState();
+        await fetchAllData();
+        addToast('평점이 제출되었습니다. 감사합니다!', 'success');
     } catch (error: any) {
         addToast(`평점 제출 실패: ${error.message}`, 'error');
     }
@@ -346,129 +480,243 @@ const AppContent: React.FC = () => {
     }
 
     try {
-        const voteInsertPayload: Database['public']['Tables']['votes']['Insert'] = {
-            title: newVoteData.title,
-            description: newVoteData.description ?? null,
-            type: newVoteData.type,
-            end_date: newVoteData.endDate,
-            image_url: newVoteData.imageUrl ?? null,
-            players: newVoteData.players ?? null,
+        const newVote = await createVoteInternal(newVoteData);
+        if (newVote) {
+           commonLogic(newVote);
+        }
+    } catch (error: any) {
+        addToast(`생성 실패: ${error.message}`, 'error');
+    }
+  };
+  
+  const handleCreateMatch = async (matchData: MatchCreationData) => {
+      const commonLogic = (newMatch: Match, newPrediction: Vote) => {
+        setMatches(prev => [newMatch, ...prev].sort((a, b) => new Date(b.match_time).getTime() - new Date(a.match_time).getTime()));
+        setVotes(prev => [newPrediction, ...prev]);
+        addToast('경기가 생성되고 스코어 예측이 자동으로 등록되었습니다.', 'success');
+      };
+      
+      if (isLocalMode) {
+        const newMatch: Match = {
+            ...matchData,
+            id: `match-${Date.now()}`,
+            created_at: new Date().toISOString(),
+            home_score: null, away_score: null, is_finished: false, user_id: 'mock-user-id',
+        };
+        const newPrediction: Vote = {
+            id: `vote-${Date.now()}`, match_id: newMatch.id, createdAt: new Date().toISOString(),
+            title: `${matchData.home_team} vs ${matchData.away_team}, 스코어는?`, type: VoteKind.MATCH_PREDICTION,
+            description: `${matchData.competition} 빅매치!`, endDate: matchData.match_time,
+            options: [{id: '1', label: matchData.home_team, votes:0}, {id: '2', label: matchData.away_team, votes:0}],
+            user_id: 'mock-user-id'
+        };
+        commonLogic(newMatch, newPrediction);
+        return;
+      }
+      
+      try {
+        const { data: newMatch, error: matchError } = await supabase!.from('matches').insert({
+            ...matchData,
             user_id: session!.user.id
+        }).select().single();
+        if (matchError) throw matchError;
+
+        const predictionVoteData: VoteCreationData = {
+            title: `${newMatch.home_team} vs ${newMatch.away_team}, 스코어는?`,
+            description: `${newMatch.competition} 경기의 스코어를 맞춰보세요!`,
+            type: VoteKind.MATCH_PREDICTION,
+            endDate: newMatch.match_time,
+            match_id: newMatch.id,
+            options: [{label: newMatch.home_team}, {label: newMatch.away_team}]
         };
 
-        const { data: vote, error: voteError } = await supabase!
-            .from('votes')
-            .insert(voteInsertPayload)
+        const newPrediction = await createVoteInternal(predictionVoteData);
+        if(!newPrediction) throw new Error("자동 스코어 예측 생성에 실패했습니다.");
+
+        commonLogic(newMatch, newPrediction);
+      } catch (error: any) {
+         addToast(`경기 생성 실패: ${error.message}`, 'error');
+      }
+  };
+
+  const handleUpdateMatch = async (matchId: string, matchData: MatchCreationData) => {
+    const commonLogic = (updatedMatch: Match, updatedVote: Vote | undefined) => {
+        setMatches(prev => prev.map(m => m.id === matchId ? updatedMatch : m));
+        if (updatedVote) {
+            setVotes(prev => prev.map(v => v.id === updatedVote.id ? updatedVote : v));
+        }
+        addToast('경기가 수정되었습니다.', 'success');
+    };
+    
+    if (isLocalMode) {
+        const existingMatch = matches.find(m => m.id === matchId)!;
+        const updatedMatch: Match = { ...existingMatch, ...matchData };
+        let updatedVote: Vote | undefined;
+        const prediction = votes.find(v => v.match_id === matchId && v.type === VoteKind.MATCH_PREDICTION);
+        if (prediction) {
+            updatedVote = {
+                ...prediction,
+                title: `${matchData.home_team} vs ${matchData.away_team}, 스코어는?`,
+                description: `${matchData.competition} 경기의 스코어를 맞춰보세요!`,
+                endDate: matchData.match_time,
+            }
+        }
+        commonLogic(updatedMatch, updatedVote);
+        return;
+    }
+    
+    try {
+        const { data: updatedMatch, error } = await supabase!
+            .from('matches')
+            .update({
+                competition: matchData.competition,
+                home_team: matchData.home_team,
+                away_team: matchData.away_team,
+                match_time: matchData.match_time,
+            })
+            .eq('id', matchId)
             .select()
             .single();
 
-        if (voteError) throw voteError;
-        if (!vote) throw new Error("Vote creation failed, no data returned.");
+        if (error) throw error;
+        
+        let updatedVote: Vote | undefined;
+        const predictionVote = votes.find(v => v.match_id === matchId && v.type === VoteKind.MATCH_PREDICTION);
+        if (predictionVote) {
+             const { data: voteData, error: voteUpdateError } = await supabase!.from('votes')
+                 .update({ 
+                    title: `${updatedMatch.home_team} vs ${updatedMatch.away_team}, 스코어는?`,
+                    description: `${updatedMatch.competition} 경기의 스코어를 맞춰보세요!`,
+                    end_date: updatedMatch.match_time,
+                 })
+                 .eq('id', predictionVote.id)
+                 .select(`*, options:vote_options(*)`)
+                 .single();
 
-        type VoteOptionInsert = Database['public']['Tables']['vote_options']['Insert'];
-        const optionsToInsert: VoteOptionInsert[] = newVoteData.options.map((opt) => ({
-            vote_id: vote.id,
-            label: opt.label,
-        }));
-        
-        const { data: insertedOptions, error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert).select();
-        if (optionsError) throw optionsError;
-        if (!insertedOptions) throw new Error("Could not retrieve created options.");
-        
-        const newVoteWithDetails: Vote = {
-            id: vote.id,
-            createdAt: vote.created_at,
-            title: vote.title,
-            description: vote.description || undefined,
-            type: vote.type as VoteKind,
-            endDate: vote.end_date,
-            imageUrl: vote.image_url || undefined,
-            players: vote.players || undefined,
-            user_id: vote.user_id,
-            options: insertedOptions.map(o => ({
-                id: o.id,
-                label: o.label,
-                votes: o.votes,
-            })),
-        };
-        commonLogic(newVoteWithDetails);
+             if (voteUpdateError) {
+                console.error("Failed to update prediction title", voteUpdateError);
+             } else {
+                updatedVote = {
+                    id: voteData.id,
+                    title: voteData.title,
+                    description: voteData.description || undefined,
+                    type: voteData.type as VoteKind,
+                    endDate: voteData.end_date,
+                    createdAt: voteData.created_at,
+                    imageUrl: voteData.image_url || undefined,
+                    players: voteData.players as Player[] | null,
+                    user_id: voteData.user_id,
+                    match_id: voteData.match_id || undefined,
+                    options: (voteData.options as any[]).map((o: any) => ({
+                      id: o.id, label: o.label, votes: o.votes, ratingCount: o.rating_count, comments: o.comments || [],
+                    })),
+                };
+             }
+        }
+        commonLogic(updatedMatch, updatedVote);
     } catch (error: any) {
-        addToast(`투표 생성 실패: ${error.message}`, 'error');
+        addToast(`경기 수정 실패: ${error.message}`, 'error');
     }
   };
 
-  const handleCreateRating = async (newRatingData: VoteCreationData) => {
-     const commonLogic = (newRating: Vote) => {
-        setRatings(prev => [newRating, ...prev]);
-        navigate('/');
-        addToast('선수 평점이 성공적으로 생성되었습니다.', 'success');
-    };
+  const handleDeleteMatch = async (matchId: string) => {
+    if (!window.confirm('이 경기를 삭제하시겠습니까? 연관된 모든 예측과 평점 데이터도 함께 삭제됩니다.')) {
+        return;
+    }
 
     if (isLocalMode) {
-        const ratingToAdd: Vote = {
-            ...newRatingData,
-            id: `mock-rating-${Date.now()}`,
-            createdAt: new Date().toISOString(),
-            user_id: 'mock-user-id',
-            options: newRatingData.players!.map(p => ({
-                id: String(p.id),
-                label: p.name,
-                votes: 0,
-                ratingCount: 0,
-                comments: [],
-            })),
-        };
-        commonLogic(ratingToAdd);
+        const associatedVoteIds = [...votes, ...ratings].filter(v => v.match_id === matchId).map(v => v.id);
+        setMatches(prev => prev.filter(m => m.id !== matchId));
+        setVotes(prev => prev.filter(v => !associatedVoteIds.includes(v.id)));
+        setRatings(prev => prev.filter(r => !associatedVoteIds.includes(r.id)));
+        addToast('경기가 삭제되었습니다.', 'success');
         return;
     }
 
     try {
-        const voteInsertPayload: Database['public']['Tables']['votes']['Insert'] = {
-            title: newRatingData.title,
-            description: newRatingData.description ?? null,
-            type: VoteKind.RATING,
-            end_date: newRatingData.endDate,
-            players: newRatingData.players ?? null,
-            user_id: session!.user.id,
-        };
-
-        const { data: vote, error: voteError } = await supabase!.from('votes').insert(voteInsertPayload).select().single();
-
-        if (voteError) throw voteError;
-        if (!vote) throw new Error("Rating creation failed");
-
-        type VoteOptionInsert = Database['public']['Tables']['vote_options']['Insert'];
-        const optionsToInsert: VoteOptionInsert[] = newRatingData.players!.map(p => ({
-            vote_id: vote.id,
-            label: p.name,
-        }));
+        const { data: voteIds, error: voteIdError } = await supabase!
+            .from('votes').select('id').eq('match_id', matchId);
+        if (voteIdError) throw voteIdError;
         
-        const { data: insertedOptions, error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert).select();
-        if (optionsError) throw optionsError;
-        if (!insertedOptions) throw new Error("Failed to get created options back");
+        const idsToDelete = voteIds.map(v => v.id);
+        if (idsToDelete.length > 0) {
+            await supabase!.from('score_predictions').delete().in('vote_id', idsToDelete);
+            await supabase!.from('vote_options').delete().in('vote_id', idsToDelete);
+            await supabase!.from('votes').delete().in('id', idsToDelete);
+        }
+        
+        const { error: matchDeleteError } = await supabase!.from('matches').delete().eq('id', matchId);
+        if (matchDeleteError) throw matchDeleteError;
+        
+        await fetchAllData(); // Easiest way to refetch all data
+        addToast('경기와 관련 콘텐츠가 모두 삭제되었습니다.', 'success');
+    } catch (error: any) {
+        addToast(`경기 삭제 실패: ${error.message}`, 'error');
+    }
+  };
 
-        const newRatingWithDetails: Vote = {
-            id: vote.id,
-            createdAt: vote.created_at,
-            title: vote.title,
-            description: vote.description || undefined,
-            type: vote.type as VoteKind,
-            endDate: vote.end_date,
-            imageUrl: vote.image_url || undefined,
-            players: vote.players || undefined,
-            user_id: vote.user_id,
-            options: insertedOptions.map(o => ({
-                id: o.id,
-                label: o.label,
-                votes: o.votes,
-                ratingCount: o.rating_count || 0,
-                comments: o.comments || [],
-            })),
-        };
-        commonLogic(newRatingWithDetails);
+  const handleSubmitMatchResult = async (matchId: string, resultData: MatchResultData) => {
+    const existingRating = ratings.find(r => r.match_id === matchId);
+
+    // --- MOCK MODE ---
+    if (isLocalMode) {
+        const match = matches.find(m => m.id === matchId)!;
+        const updatedMatch: Match = {...match, home_score: resultData.home_score, away_score: resultData.away_score, is_finished: true };
+        setMatches(prev => prev.map(m => m.id === matchId ? updatedMatch : m));
+
+        if (!existingRating) {
+            const newRating: Vote = {
+                id: `rating-${Date.now()}`, match_id: match.id, createdAt: new Date().toISOString(),
+                title: `${match.home_team} vs ${match.away_team} 선수 평점`, type: VoteKind.RATING,
+                description: '경기에 출전한 선수들의 활약을 평가해주세요.',
+                endDate: new Date(new Date(match.match_time).getTime() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+                players: resultData.players,
+                options: resultData.players.map(p => ({ id: String(p.id), label: p.name, votes: 0, ratingCount: 0, comments: []})),
+                user_id: 'mock-user-id'
+            };
+            setRatings(prev => [newRating, ...prev]);
+            addToast('경기 결과가 입력되고 선수 평점이 자동으로 생성되었습니다.', 'success');
+        } else {
+            addToast('경기 결과가 수정되었습니다.', 'success');
+        }
+        return;
+    }
+    
+    // --- SUPABASE MODE ---
+    try {
+        const { data: updatedMatch, error: matchError } = await supabase!.from('matches')
+            .update({ home_score: resultData.home_score, away_score: resultData.away_score, is_finished: true })
+            .eq('id', matchId)
+            .select()
+            .single();
+        if (matchError) throw matchError;
+
+        if (!existingRating) {
+            // Create a new rating
+            const ratingEndDate = new Date(new Date(updatedMatch.match_time).getTime() + 2 * 24 * 60 * 60 * 1000).toISOString();
+            const ratingVoteData: VoteCreationData = {
+                title: `${updatedMatch.home_team} vs ${updatedMatch.away_team} 선수 평점`,
+                description: `${updatedMatch.competition} 경기에 출전한 선수들의 활약을 평가해주세요.`,
+                type: VoteKind.RATING,
+                endDate: ratingEndDate,
+                match_id: updatedMatch.id,
+                players: resultData.players,
+                options: resultData.players.map(p => ({ label: p.name }))
+            };
+            const newRating = await createVoteInternal(ratingVoteData);
+            if (!newRating) throw new Error("선수 평점 자동 생성에 실패했습니다.");
+
+            setRatings(prev => [newRating, ...prev]);
+            addToast('경기 결과가 입력되고 선수 평점이 자동으로 생성되었습니다.', 'success');
+        } else {
+             addToast('경기 결과가 수정되었습니다.', 'success');
+        }
+        
+        // Always update the match in local state
+        setMatches(prev => prev.map(m => m.id === matchId ? updatedMatch : m));
 
     } catch (error: any) {
-        addToast(`평점 생성 실패: ${error.message}`, 'error');
+        addToast(`결과 처리 실패: ${error.message}`, 'error');
     }
   };
 
@@ -754,8 +1002,9 @@ const AppContent: React.FC = () => {
       <Header />
       <main className="container mx-auto max-w-7xl p-4 sm:p-6 lg:p-8 flex-grow">
         <Routes>
-          <Route path="/" element={<HomePage votes={votes} ratings={ratings} articles={articles} xPosts={xPosts} />} />
+          <Route path="/" element={<HomePage votes={votes} ratings={ratings} articles={articles} xPosts={xPosts} matches={matches} />} />
           <Route path="/vote/:id" element={<VotePage votes={votes} onVote={handleVote} onRatePlayers={() => {}} />} />
+          <Route path="/prediction/:id" element={<PredictionPage votes={votes} onPredictScore={handlePredictScore} />} />
           <Route path="/rating/:id" element={<VotePage ratings={ratings} onVote={handleVote} onRatePlayers={handlePlayerRatingSubmit} />} />
           <Route path="/article/:id" element={<ArticlePage articles={articles} onRecommend={handleRecommendArticle} onView={handleViewArticle} />} />
           <Route path="/x-post/:id" element={<XPostPage xPosts={xPosts} />} />
@@ -768,11 +1017,22 @@ const AppContent: React.FC = () => {
           {/* Protected Routes */}
           <Route path="/create" element={<ProtectedRoute><CreateHubPage /></ProtectedRoute>} />
           <Route path="/create/vote" element={<ProtectedRoute><CreateVotePage onCreateVote={handleCreateVote} squadPlayers={squadPlayers} /></ProtectedRoute>} />
-          <Route path="/create/rating" element={<ProtectedRoute><CreateRatingPage onCreateRating={handleCreateRating} squadPlayers={squadPlayers} /></ProtectedRoute>} />
           <Route path="/create/article" element={<ProtectedRoute><CreateArticlePage onCreateArticle={handleCreateArticle} /></ProtectedRoute>} />
           <Route path="/create/x-post" element={<ProtectedRoute><CreateXPostPage onCreateXPost={handleCreateXPost} /></ProtectedRoute>} />
           <Route path="/squad" element={<ProtectedRoute><SquadPage players={squadPlayers} onAddPlayer={handleCreateSquadPlayer} onUpdatePlayer={handleUpdateSquadPlayer} onDeletePlayer={handleDeleteSquadPlayer} /></ProtectedRoute>} />
-
+          <Route path="/matches" element={
+              <ProtectedRoute>
+                  <MatchManagementPage 
+                      matches={matches} 
+                      ratings={ratings}
+                      squadPlayers={squadPlayers}
+                      onCreateMatch={handleCreateMatch} 
+                      onUpdateMatch={handleUpdateMatch}
+                      onDeleteMatch={handleDeleteMatch}
+                      onSubmitMatchResult={handleSubmitMatchResult} 
+                  />
+              </ProtectedRoute>
+          } />
         </Routes>
       </main>
       <footer className="py-8 mt-8 border-t bg-gray-100">

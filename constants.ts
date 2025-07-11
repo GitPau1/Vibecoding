@@ -1,6 +1,5 @@
 
-
-import { Vote, VoteKind, Player, Article, XPost, SquadPlayer, PlayerPosition } from './types';
+import { Vote, VoteKind, Player, Article, XPost, SquadPlayer, PlayerPosition, Match } from './types';
 
 export const MOCK_PLAYERS: Player[] = [
   { id: 1, name: '브루누 기마랑이스', team: '뉴캐슬 유나이티드', photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/659232-1675785723.jpg?lm=1', isStarter: true },
@@ -34,20 +33,85 @@ export const MOCK_SQUAD_PLAYERS: SquadPlayer[] = [
   { id: 'sq-12', createdAt: new Date().toISOString(), name: '하비 반스', number: 15, position: PlayerPosition.FW, photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/331320-1688648174.jpg?lm=1' },
 ];
 
+export const MOCK_MATCHES: Match[] = [
+    {
+        id: 'mock-match-1',
+        created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+        competition: '프리미어리그',
+        home_team: '뉴캐슬',
+        away_team: '맨체스터 유나이티드',
+        match_time: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(), // In 1 day
+        home_score: null,
+        away_score: null,
+        is_finished: false,
+        user_id: 'mock-admin-id'
+    },
+    {
+        id: 'mock-match-2',
+        created_at: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+        competition: '프리미어리그',
+        home_team: '리버풀',
+        away_team: '첼시',
+        match_time: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
+        home_score: 4,
+        away_score: 1,
+        is_finished: true,
+        user_id: 'mock-admin-id'
+    },
+    {
+        id: 'mock-match-3',
+        created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+        competition: 'FA컵',
+        home_team: '뉴캐슬',
+        away_team: '아스날',
+        match_time: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), // 4 days ago
+        home_score: 1,
+        away_score: 0,
+        is_finished: true,
+        user_id: 'mock-admin-id'
+    }
+];
+
 export const MOCK_VOTES: Vote[] = [
   {
-    id: 'mock-vote-1',
-    title: '뉴캐슬 vs 맨체스터 유나이티드, 라이벌 매치 승자는?',
-    type: VoteKind.MATCH,
-    description: '세인트 제임스 파크에서 펼쳐지는 자존심 대결, 승리팀을 예측해보세요!',
+    id: 'mock-predict-1',
+    match_id: 'mock-match-1',
+    title: '뉴캐슬 vs 맨체스터 유나이티드, 라이벌 매치 스코어는?',
+    type: VoteKind.MATCH_PREDICTION,
+    description: '세인트 제임스 파크에서 펼쳐지는 자존심 대결, 정확한 스코어를 예측해보세요!',
     imageUrl: 'https://assets.goal.com/v3/assets/bltcc7a7ffd2fbf71f5/blt5b6e41e31ce536a2/6389a46b53a5c20b8f9e6a06/GettyImages-1445749717.jpg',
-    endDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+    endDate: MOCK_MATCHES[0].match_time,
     createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
     options: [
-      { id: 'mock-1-1', label: '뉴캐슬 승', votes: 1500 },
-      { id: 'mock-1-2', label: '무승부', votes: 350 },
-      { id: 'mock-1-3', label: '맨유 승', votes: 450 },
+      { id: 'mock-1-1', label: '뉴캐슬', votes: 0 },
+      { id: 'mock-1-2', label: '맨체스터 유나이티드', votes: 0 },
     ],
+    scorePredictions: [
+        { id: 'sp1', vote_id: 'mock-predict-1', user_id: 'user1', score_a: 2, score_b: 1},
+        { id: 'sp2', vote_id: 'mock-predict-1', user_id: 'user2', score_a: 3, score_b: 1},
+        { id: 'sp3', vote_id: 'mock-predict-1', user_id: 'user3', score_a: 2, score_b: 2},
+    ]
+  },
+  {
+    id: 'mock-predict-expired-1',
+    match_id: 'mock-match-2',
+    title: '리버풀 vs 첼시, 지난 주말 명승부 결과는?',
+    type: VoteKind.MATCH_PREDICTION,
+    description: '안필드에서 펼쳐진 프리미어리그 빅매치! 당신의 예측과 실제 결과를 비교해보세요.',
+    imageUrl: 'https://assets.goal.com/v3/assets/bltcc7a7ffd2fbf71f5/blt3f05f8e025c20a59/65ba3935265261040a63c321/Jurgen_Klopp_Liverpool_2023-24.jpg',
+    endDate: MOCK_MATCHES[1].match_time,
+    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
+    options: [
+      { id: 'mock-exp-1-1', label: '리버풀', votes: 0 },
+      { id: 'mock-exp-1-2', label: '첼시', votes: 0 },
+    ],
+    scorePredictions: [
+        { id: 'sp-exp-1', vote_id: 'mock-predict-expired-1', user_id: 'user1', score_a: 4, score_b: 1},
+        { id: 'sp-exp-2', vote_id: 'mock-predict-expired-1', user_id: 'user2', score_a: 2, score_b: 0},
+        { id: 'sp-exp-3', vote_id: 'mock-predict-expired-1', user_id: 'user3', score_a: 3, score_b: 1},
+        { id: 'sp-exp-4', vote_id: 'mock-predict-expired-1', user_id: 'mock-user-id', score_a: 3, score_b: 0},
+    ],
+    userScorePrediction: { scoreA: 3, scoreB: 0 }
   },
   {
     id: 'mock-vote-2',
@@ -83,11 +147,12 @@ export const MOCK_VOTES: Vote[] = [
 export const MOCK_RATINGS: Vote[] = [
   {
     id: 'mock-rating-1',
+    match_id: 'mock-match-3',
     title: '뉴캐슬 vs 아스날 전 선수 평점',
     type: VoteKind.RATING,
     description: '치열했던 빅매치! 뉴캐슬 선수들의 활약을 평가해주세요.',
-    endDate: new Date().toISOString(),
-    createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    endDate: new Date(new Date(MOCK_MATCHES[2].match_time).getTime() + 2 * 24 * 60 * 60 * 1000).toISOString(), // Match time + 2 days
+    createdAt: new Date(new Date(MOCK_MATCHES[2].match_time).getTime() + 1 * 60 * 60 * 1000).toISOString(), // 1 hour after match
     players: MOCK_PLAYERS,
     options: MOCK_PLAYERS.map(p => ({
         id: String(p.id),
