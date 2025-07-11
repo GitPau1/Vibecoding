@@ -16,7 +16,6 @@ const LoginPage: React.FC = () => {
   
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
 
   const from = location.state?.from?.pathname || '/';
@@ -30,7 +29,7 @@ const LoginPage: React.FC = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await signIn({ username, password, rememberMe });
+    const { error } = await signIn({ username, password });
     if (error) {
       if (error.message === 'Invalid login credentials') {
         addToast('아이디 또는 비밀번호가 올바르지 않습니다.', 'error');
@@ -57,7 +56,7 @@ const LoginPage: React.FC = () => {
       <Card className="p-6 md:p-8">
         <h2 className="text-2xl font-bold mb-1 text-center">로그인</h2>
         <p className="text-gray-500 mb-6 text-center">SoccerVote에 오신 것을 환영합니다.</p>
-        <form onSubmit={handleLogin} noValidate className="space-y-4">
+        <form onSubmit={handleLogin} noValidate className="space-y-6">
           <div>
             <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">아이디</label>
             <Input id="username" name="username" type="text" value={username} onChange={e => setUsername(e.target.value)} required autoComplete="username" />
@@ -66,20 +65,7 @@ const LoginPage: React.FC = () => {
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">비밀번호</label>
             <Input id="password" name="password" type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
           </div>
-          <div className="flex items-center">
-              <input
-                id="remember-me"
-                name="remember-me"
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-              />
-              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900 cursor-pointer">
-                로그인 유지
-              </label>
-          </div>
-          <Button type="submit" disabled={loading} className="w-full !mt-6">
+          <Button type="submit" disabled={loading} className="w-full">
             {loading ? '로그인 중...' : '로그인'}
           </Button>
         </form>

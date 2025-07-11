@@ -1,0 +1,326 @@
+body {
+        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
+      }
+      @keyframes toast-center-in {
+        from {
+          transform: translateY(-2rem) scale(0.95);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0) scale(1);
+          opacity: 1;
+        }
+      }
+      @keyframes toast-center-out {
+        from {
+          transform: translateY(0) scale(1);
+          opacity: 1;
+        }
+        to {
+          transform: translateY(-2rem) scale(0.95);
+          opacity: 0;
+        }
+      }
+      .animate-toast-center-in {
+        animation: toast-center-in 0.35s cubic-bezier(0.21, 1.02, 0.73, 1) forwards;
+      }
+      .animate-toast-center-out {
+        animation: toast-center-out 0.35s cubic-bezier(0.36, 0, 0.66, -0.56) forwards;
+      }
+
+      /* Custom Range Slider Styles */
+      .custom-range {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 8px;
+        background: #e5e7eb; /* bg-gray-200 */
+        border-radius: 9999px;
+        outline: none;
+        opacity: 0.9;
+        transition: opacity 0.2s;
+        cursor: pointer;
+      }
+
+      .custom-range:hover {
+        opacity: 1;
+      }
+
+      /* --- Webkit (Chrome, Safari, Edge) --- */
+      .custom-range::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 22px;
+        height: 22px;
+        background: #6366f1; /* primary color */
+        cursor: pointer;
+        border-radius: 50%;
+        border: 3px solid white;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.2);
+        transition: background-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+      }
+
+      .custom-range.unrated::-webkit-slider-thumb {
+        background-color: #9ca3af; /* gray-400 */
+      }
+      
+      .custom-range:active::-webkit-slider-thumb {
+        box-shadow: 0 0 0 8px rgba(99, 102, 241, 0.2);
+      }
+
+
+      /* --- Mozilla Firefox --- */
+      .custom-range::-moz-range-thumb {
+        width: 22px;
+        height: 22px;
+        background: #6366f1;
+        cursor: pointer;
+        border-radius: 50%;
+        border: 3px solid white;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.2);
+        transition: background-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+      }
+      
+      .custom-range.unrated::-moz-range-thumb {
+        background-color: #9ca3af; /* gray-400 */
+      }
+
+      .custom-range:active::-moz-range-thumb {
+        box-shadow: 0 0 0 8px rgba(99, 102, 241, 0.2);
+      }
+
+      .custom-range::-moz-range-track {
+        width: 100%;
+        height: 8px;
+        background: #e5e7eb;
+        border-radius: 9999px;
+        cursor: pointer;
+      }
+      
+      .drag-over {
+        border-style: dashed;
+        background-color: #eef2ff;
+      }
+
+
+      /* Article Body Styles */
+      .article-body {
+        line-height: 1.6;
+      }
+      .article-body h2 {
+          font-size: 1.75rem;
+          font-weight: 700;
+          margin-top: 0.25em;
+          margin-bottom: 0.75em;
+          line-height: 1.3;
+      }
+      .article-body h3 {
+          font-size: 1.375rem;
+          font-weight: 700;
+          margin-top: 0.25em;
+          margin-bottom: 0.5em;
+          line-height: 1.4;
+      }
+      .article-body p {
+          margin-bottom: 1.25em;
+      }
+      .article-body strong {
+          font-weight: 600;
+      }
+      .article-body a {
+        color: #6366f1;
+        text-decoration: underline;
+      }
+      
+      /* WYSIWYG Editor Styles */
+      .wysiwyg-toolbar {
+          display: flex;
+          gap: 0.25rem;
+          padding: 0.5rem;
+          border: 1px solid #d1d5db;
+          border-bottom: none;
+          border-top-left-radius: 0.5rem;
+          border-top-right-radius: 0.5rem;
+          background-color: #f9fafb;
+      }
+      .wysiwyg-toolbar button {
+          padding: 0.25rem 0.75rem;
+          border-radius: 0.375rem;
+          font-weight: 600;
+          color: #4b5563;
+          background-color: white;
+          border: 1px solid #d1d5db;
+          transition: all 0.2s;
+          cursor: pointer;
+      }
+      .wysiwyg-toolbar button:hover {
+          background-color: #f3f4f6;
+          color: #1f2937;
+      }
+      .wysiwyg-toolbar button.active {
+          background-color: #eef2ff;
+          color: #4338ca;
+          border-color: #a5b4fc;
+      }
+      .wysiwyg-editor {
+          display: block;
+          width: 100%;
+          min-height: 250px;
+          padding: 0.75rem;
+          border: 1px solid #d1d5db;
+          border-top: none;
+          border-bottom-left-radius: 0.5rem;
+          border-bottom-right-radius: 0.5rem;
+          box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+          background-color: white;
+          color: #1f2937;
+          /* Reset some basic styles to allow .article-body to take over */
+          font-size: 1rem; /* Base font size */
+      }
+      .wysiwyg-editor:focus {
+          outline: none;
+          border-color: #6366f1;
+          box-shadow: inset 0 1px 2px rgba(0,0,0,0.05), 0 0 0 1px #6366f1;
+      }
+      .wysiwyg-editor:empty:before {
+          content: attr(data-placeholder);
+          color: #9ca3af;
+          cursor: text;
+          pointer-events: none;
+          /* Placeholder should not inherit heading styles */
+          font-size: 1rem;
+          font-weight: 400;
+          line-height: 1.6;
+      }
+
+      /* Carousel Styles */
+      .carousel-container {
+        position: relative;
+        width: 100%;
+        overflow: hidden;
+        border-radius: 1.5rem; /* rounded-3xl */
+        -webkit-mask-image: -webkit-radial-gradient(white, black);
+        user-select: none; /* Prevent text selection during drag */
+      }
+      .carousel-track {
+        display: flex;
+        height: 100%;
+        transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+      }
+      .carousel-slide {
+        flex: 0 0 100%;
+        width: 100%;
+        height: 100%;
+        position: relative;
+        cursor: grab;
+      }
+      .carousel-slide img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        pointer-events: none; /* Prevent image drag ghosting */
+      }
+      .carousel-slide .overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 100%;
+        background: linear-gradient(to right, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.6) 25%, rgba(0,0,0,0) 90%);
+        display: flex;
+        align-items: center;
+        /* Mobile padding (default) */
+        padding: 2rem 2rem;
+      }
+      @media (min-width: 768px) {
+        .carousel-slide .overlay {
+          padding: 2rem 4rem;
+        }
+      }
+      @media (min-width: 1440px) {
+        .carousel-slide .overlay {
+          padding: 2rem 5rem;
+        }
+      }
+      .carousel-content-wrapper {
+        max-width: 70%;
+        color: white;
+      }
+      .carousel-chip {
+          display: inline-block;
+          background-color: rgba(255, 255, 255, 0.15);
+          backdrop-filter: blur(4px);
+          -webkit-backdrop-filter: blur(4px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          color: #fff;
+          font-size: 0.75rem;
+          font-weight: 600;
+          padding: 0.3rem 0.8rem;
+          border-radius: 9999px;
+          margin-bottom: 1rem;
+      }
+      .carousel-title {
+          text-shadow: 0 2px 8px rgba(0,0,0,0.7);
+      }
+      
+      .carousel-fallback-gradient {
+        background: linear-gradient(135deg, #111827 0%, #38bdf8 100%);
+        width: 100%;
+        height: 100%;
+      }
+
+      .carousel-indicators {
+        position: absolute;
+        bottom: 0.75rem;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 0.6rem;
+        z-index: 10;
+        background-color: rgba(0, 0, 0, 0.3);
+        padding: 0.4rem 0.8rem;
+        border-radius: 9999px;
+      }
+      .carousel-indicator {
+        width: 0.6rem;
+        height: 0.6rem;
+        border-radius: 9999px;
+        background-color: rgba(255, 255, 255, 0.4);
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.2s, transform 0.2s;
+      }
+      .carousel-indicator.active {
+        background-color: white;
+        transform: scale(1.0);
+      }
+      
+      /* Modal Styles */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(17, 24, 39, 0.6); /* gray-900/60 */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 40; /* Ensure it's above other content but below toast */
+        backdrop-filter: blur(4px);
+        opacity: 0;
+        animation: fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      }
+      @keyframes fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      .modal-content {
+        opacity: 0;
+        transform: scale(0.95) translateY(1rem);
+        animation: slide-up 0.3s cubic-bezier(0.4, 0, 0.2, 1) 0.1s forwards;
+      }
+      @keyframes slide-up {
+        from { opacity: 0; transform: scale(0.95) translateY(1rem); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+      }
