@@ -245,14 +245,7 @@ const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
 // We initialize the client, but it will be null if the environment variables are missing.
 // The main App component will handle this case and display a message to the user.
 export const supabase = (supabaseUrl && supabaseAnonKey)
-  ? createClient<Database>(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        storage: localStorage,
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true,
-      },
-    })
+  ? createClient<Database>(supabaseUrl, supabaseAnonKey)
   : null;
 
 if (!supabase) {

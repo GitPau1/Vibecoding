@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { supabase, Database } from '../lib/supabaseClient';
 import { AuthSession, Profile } from '../types';
 import { AuthError, User, Session } from '@supabase/supabase-js';
+import { useToast } from './ToastContext';
 
 type UserProfile = Database['public']['Tables']['profiles']['Row'];
 
@@ -36,6 +37,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [session, setSession] = useState<AuthSession | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const { addToast } = useToast();
   const isLocalMode = supabase === null;
 
   useEffect(() => {
@@ -58,61 +60,48 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return;
     }
 
-    const checkUserSession = async () => {
-      try {
-        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-        if (error) {
-          console.error('Error fetching session:', error);
-        }
-        setSession(currentSession);
-        
-        if (currentSession?.user) {
-          const { data: userProfile, error: profileError } = await supabase
+    // Safety net timeout to prevent infinite loading
+    const authTimeout = setTimeout(() => {
+        console.warn("Authentication check timed out after 5 seconds.");
+        addToast("인증 서비스 응답이 지연됩니다. 로그아웃 상태로 진행합니다.", "info");
+        setAuthLoading(false);
+    }, 5000);
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      // If the listener fires, it means authentication is resolved, so clear the timeout.
+      clearTimeout(authTimeout);
+
+      setSession(session as AuthSession | null);
+      setAuthLoading(false); // Signal that the initial auth check is complete.
+
+      if (session?.user) {
+        try {
+          const { data: userProfile, error } = await supabase
               .from('profiles')
               .select('*')
-              .eq('id', currentSession.user.id)
+              .eq('id', session.user.id)
               .single();
-          if (profileError && profileError.code !== 'PGRST116') {
-              console.error("Error fetching profile on initial load:", profileError);
+  
+          if (error && error.code !== 'PGRST116') {
+              console.error("Error fetching profile:", error);
               setProfile(null);
           } else {
               setProfile(userProfile);
           }
-        } else {
-            setProfile(null);
-        }
-      } catch (e) {
-          console.error("Unexpected error fetching session:", e);
-      } finally {
-          setAuthLoading(false);
-      }
-    };
-
-    checkUserSession();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      setSession(newSession);
-       if (newSession?.user) {
-        const { data: userProfile, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', newSession.user.id)
-            .single();
-        if (profileError && profileError.code !== 'PGRST116') {
-            console.error("Error fetching profile on auth change:", profileError);
-            setProfile(null);
-        } else {
-            setProfile(userProfile);
+        } catch(e) {
+          console.error("An unexpected error occurred while fetching the profile:", e);
+          setProfile(null);
         }
       } else {
-          setProfile(null);
+        setProfile(null);
       }
     });
 
     return () => {
       authListener.subscription.unsubscribe();
+      clearTimeout(authTimeout);
     };
-  }, [isLocalMode]);
+  }, [isLocalMode, addToast]);
 
 
   const signUp = async ({ username, password, nickname }: { username: string; password: string; nickname: string; }) => {
