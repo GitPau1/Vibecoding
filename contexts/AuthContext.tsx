@@ -60,26 +60,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     setAuthLoading(true);
-
-    // onAuthStateChange is the single source of truth.
-    // It fires once on initial load with the current session (or null),
-    // and then again whenever the auth state changes.
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setSession(session);
         if (session) {
-            const { data: userProfile, error } = await supabase
-                .from('profiles').select('*').eq('id', session.user.id).single();
-            if (error && error.code !== 'PGRST116') { // 'PGRST116' means no rows found
-                console.error("Error fetching profile:", error.message);
-                setProfile(null);
-            } else {
-                setProfile(userProfile);
-            }
-        } else {
+          const { data: userProfile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profileError && profileError.code !== 'PGRST116') {
+            console.error("Error fetching profile on auth change:", profileError.message);
             setProfile(null);
+          } else {
+            setProfile(userProfile);
+          }
+        } else {
+          setProfile(null);
         }
-        // This is crucial: set loading to false only after the first auth event has been handled.
         setAuthLoading(false);
       }
     );
@@ -244,13 +244,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   
   const signOut = async () => {
     if (!isLocalMode) {
-      // Supabase logic
+      // The onAuthStateChange listener will handle clearing the session and profile.
       const { error } = await supabase.auth.signOut();
-      if (!error) {
-        // Manually clear session and profile for immediate UI update
-        setSession(null);
-        setProfile(null);
-      }
       return { error };
     }
     
