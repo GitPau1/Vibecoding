@@ -60,20 +60,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return;
     }
 
-    // Safety net timeout to prevent infinite loading
+    // Safety net timeout to prevent infinite loading if Supabase is unresponsive
     const authTimeout = setTimeout(() => {
         console.warn("Authentication check timed out after 5 seconds.");
         addToast("인증 서비스 응답이 지연됩니다. 로그아웃 상태로 진행합니다.", "info");
         setAuthLoading(false);
     }, 5000);
 
+    // `onAuthStateChange` handles the initial session restore and any subsequent changes.
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      // If the listener fires, it means authentication is resolved, so clear the timeout.
+      // The listener has fired, so we can clear the safety timeout.
       clearTimeout(authTimeout);
 
       setSession(session as AuthSession | null);
-      setAuthLoading(false); // Signal that the initial auth check is complete.
-
+      
       if (session?.user) {
         try {
           const { data: userProfile, error } = await supabase
@@ -82,7 +82,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               .eq('id', session.user.id)
               .single();
   
-          if (error && error.code !== 'PGRST116') {
+          if (error && error.code !== 'PGRST116') { // PGRST116: no rows found, which is not an error here
               console.error("Error fetching profile:", error);
               setProfile(null);
           } else {
@@ -93,13 +93,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setProfile(null);
         }
       } else {
-        setProfile(null);
+        setProfile(null); // Clear profile on logout
       }
+
+      // Crucially, set loading to false *after* the session and profile have been updated.
+      setAuthLoading(false);
     });
 
     return () => {
       authListener.subscription.unsubscribe();
-      clearTimeout(authTimeout);
+      clearTimeout(authTimeout); // Clean up timeout on component unmount
     };
   }, [isLocalMode, addToast]);
 
@@ -247,6 +250,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       };
 
       localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify(mockSession));
+      // Manually set session for immediate UI update in local mode
       setSession(mockSession);
       setProfile(foundUser);
       return { error: null };
