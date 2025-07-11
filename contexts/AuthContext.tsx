@@ -60,49 +60,65 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return;
     }
 
-    // Safety net timeout to prevent infinite loading if Supabase is unresponsive
-    const authTimeout = setTimeout(() => {
-        console.warn("Authentication check timed out after 5 seconds.");
-        addToast("인증 서비스 응답이 지연됩니다. 로그아웃 상태로 진행합니다.", "info");
+    // This function handles the initial check.
+    const initializeAuth = async () => {
+      try {
+        // getSession is the key to solving the refresh problem.
+        // It reliably gets the session from storage on page load.
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+
+        if (error) {
+            console.error("Error getting session:", error);
+            addToast("세션 정보를 가져오는 중 오류가 발생했습니다.", "error");
+        } else if (initialSession) {
+            setSession(initialSession as AuthSession);
+            const { data: userProfile, error: profileError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', initialSession.user.id)
+              .single();
+  
+            if (profileError && profileError.code !== 'PGRST116') {
+              console.error("Error fetching profile on init:", profileError);
+            } else {
+              setProfile(userProfile);
+            }
+        }
+      } catch (e) {
+          console.error("Unexpected error during auth initialization:", e);
+      } finally {
+        // Crucially, set loading to false *after* the initial check is complete.
         setAuthLoading(false);
-    }, 5000);
+      }
+    };
 
-    // `onAuthStateChange` handles the initial session restore and any subsequent changes.
+    initializeAuth();
+
+    // onAuthStateChange will handle subsequent auth events (SIGN_IN, SIGN_OUT, etc.).
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      // The listener has fired, so we can clear the safety timeout.
-      clearTimeout(authTimeout);
-
       setSession(session as AuthSession | null);
       
       if (session?.user) {
-        try {
-          const { data: userProfile, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-  
-          if (error && error.code !== 'PGRST116') { // PGRST116: no rows found, which is not an error here
-              console.error("Error fetching profile:", error);
-              setProfile(null);
-          } else {
-              setProfile(userProfile);
-          }
-        } catch(e) {
-          console.error("An unexpected error occurred while fetching the profile:", e);
+        const { data: userProfile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error("Error fetching profile on auth state change:", error);
           setProfile(null);
+        } else {
+          setProfile(userProfile);
         }
       } else {
-        setProfile(null); // Clear profile on logout
+        setProfile(null);
       }
-
-      // Crucially, set loading to false *after* the session and profile have been updated.
-      setAuthLoading(false);
+      // The initial loading is already handled, no need to touch authLoading here.
     });
 
     return () => {
       authListener.subscription.unsubscribe();
-      clearTimeout(authTimeout); // Clean up timeout on component unmount
     };
   }, [isLocalMode, addToast]);
 
@@ -250,7 +266,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       };
 
       localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify(mockSession));
-      // Manually set session for immediate UI update in local mode
       setSession(mockSession);
       setProfile(foundUser);
       return { error: null };
