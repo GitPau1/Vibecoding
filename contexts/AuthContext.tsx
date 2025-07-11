@@ -60,27 +60,41 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     setAuthLoading(true);
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+
+    // Helper function to update user state based on session
+    const updateUserState = async (session: Session | null) => {
         setSession(session);
         if (session) {
-          const { data: userProfile, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
+            const { data: userProfile, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
 
-          if (profileError && profileError.code !== 'PGRST116') {
-            console.error("Error fetching profile on auth change:", profileError.message);
-            setProfile(null);
-          } else {
-            setProfile(userProfile);
-          }
+            if (error && error.code !== 'PGRST116') {
+                console.error("Error fetching profile:", error.message);
+                setProfile(null);
+            } else {
+                setProfile(userProfile);
+            }
         } else {
-          setProfile(null);
+            setProfile(null);
         }
+    };
+
+    // Get the initial session to unblock the UI quickly
+    supabase.auth.getSession().then(({ data: { session } }) => {
+        updateUserState(session);
+        setAuthLoading(false); // This is crucial to prevent getting stuck
+    }).catch(error => {
+        console.error('Error in initial getSession:', error);
         setAuthLoading(false);
+    });
+
+    // Subscribe to any subsequent auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        updateUserState(session);
       }
     );
 
@@ -244,8 +258,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   
   const signOut = async () => {
     if (!isLocalMode) {
-      // The onAuthStateChange listener will handle clearing the session and profile.
       const { error } = await supabase.auth.signOut();
+      // Manually clear state to prevent UI flicker while waiting for listener
+      setSession(null);
+      setProfile(null);
       return { error };
     }
     

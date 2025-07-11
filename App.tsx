@@ -346,17 +346,21 @@ const AppContent: React.FC = () => {
     }
 
     try {
+        const voteInsertPayload: Database['public']['Tables']['votes']['Insert'] = {
+            title: newVoteData.title,
+            description: newVoteData.description ?? null,
+            type: newVoteData.type,
+            end_date: newVoteData.endDate,
+            image_url: newVoteData.imageUrl ?? null,
+            players: newVoteData.players ?? null,
+            user_id: session!.user.id
+        };
+
         const { data: vote, error: voteError } = await supabase!
             .from('votes')
-            .insert({
-                title: newVoteData.title,
-                description: newVoteData.description ?? null,
-                type: newVoteData.type,
-                end_date: newVoteData.endDate,
-                image_url: newVoteData.imageUrl ?? null,
-                players: newVoteData.players ?? null,
-                user_id: session!.user.id
-            }).select().single();
+            .insert(voteInsertPayload)
+            .select()
+            .single();
 
         if (voteError) throw voteError;
         if (!vote) throw new Error("Vote creation failed, no data returned.");
@@ -374,17 +378,17 @@ const AppContent: React.FC = () => {
         const newVoteWithDetails: Vote = {
             id: vote.id,
             createdAt: vote.created_at,
-            title: newVoteData.title,
-            description: newVoteData.description,
-            type: newVoteData.type,
-            endDate: newVoteData.endDate,
-            imageUrl: newVoteData.imageUrl,
-            players: newVoteData.players,
+            title: vote.title,
+            description: vote.description || undefined,
+            type: vote.type as VoteKind,
+            endDate: vote.end_date,
+            imageUrl: vote.image_url || undefined,
+            players: vote.players || undefined,
             user_id: vote.user_id,
             options: insertedOptions.map(o => ({
                 id: o.id,
                 label: o.label,
-                votes: 0,
+                votes: o.votes,
             })),
         };
         commonLogic(newVoteWithDetails);
@@ -419,14 +423,16 @@ const AppContent: React.FC = () => {
     }
 
     try {
-        const { data: vote, error: voteError } = await supabase!.from('votes').insert({
+        const voteInsertPayload: Database['public']['Tables']['votes']['Insert'] = {
             title: newRatingData.title,
             description: newRatingData.description ?? null,
             type: VoteKind.RATING,
             end_date: newRatingData.endDate,
             players: newRatingData.players ?? null,
             user_id: session!.user.id,
-        }).select().single();
+        };
+
+        const { data: vote, error: voteError } = await supabase!.from('votes').insert(voteInsertPayload).select().single();
 
         if (voteError) throw voteError;
         if (!vote) throw new Error("Rating creation failed");
@@ -444,12 +450,12 @@ const AppContent: React.FC = () => {
         const newRatingWithDetails: Vote = {
             id: vote.id,
             createdAt: vote.created_at,
-            title: newRatingData.title,
-            description: newRatingData.description,
-            type: newRatingData.type,
-            endDate: newRatingData.endDate,
-            imageUrl: newRatingData.imageUrl,
-            players: newRatingData.players,
+            title: vote.title,
+            description: vote.description || undefined,
+            type: vote.type as VoteKind,
+            endDate: vote.end_date,
+            imageUrl: vote.image_url || undefined,
+            players: vote.players || undefined,
             user_id: vote.user_id,
             options: insertedOptions.map(o => ({
                 id: o.id,
