@@ -60,46 +60,65 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return;
     }
 
-    // Safety net timeout to prevent infinite loading
-    const authTimeout = setTimeout(() => {
-        console.warn("Authentication check timed out after 5 seconds.");
-        addToast("인증 서비스 응답이 지연됩니다. 로그아웃 상태로 진행합니다.", "info");
-        setAuthLoading(false);
-    }, 5000);
+    // --- New, more robust Supabase auth flow ---
+    setAuthLoading(true);
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      // If the listener fires, it means authentication is resolved, so clear the timeout.
-      clearTimeout(authTimeout);
-
-      setSession(session as AuthSession | null);
-      setAuthLoading(false); // Signal that the initial auth check is complete.
-
-      if (session?.user) {
+    // 1. Fetch the initial session when the provider mounts.
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      setSession(session);
+      if (session) {
         try {
           const { data: userProfile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+          if (error && error.code !== 'PGRST116') {
+            console.error('Error fetching initial profile:', error);
+            setProfile(null);
+          } else {
+            setProfile(userProfile);
+          }
+        } catch (e) {
+          console.error('Error fetching initial profile:', e);
+          setProfile(null);
+        }
+      }
+      // Only set loading to false after the initial session and profile are handled.
+      setAuthLoading(false);
+    }).catch(err => {
+      console.error("Error in getSession():", err);
+      setAuthLoading(false);
+    });
+
+    // 2. Set up a listener for subsequent auth state changes (e.g., sign-in, sign-out).
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setSession(session);
+        setProfile(null); // Reset profile on any auth change to avoid showing stale data
+        if (session) {
+          try {
+            const { data: userProfile, error } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
               .single();
-  
-          if (error && error.code !== 'PGRST116') {
-              console.error("Error fetching profile:", error);
-              setProfile(null);
-          } else {
+            
+            if (error && error.code !== 'PGRST116') {
+              console.error('Error fetching profile on auth change:', error);
+            } else {
               setProfile(userProfile);
+            }
+          } catch (e) {
+            console.error('Error fetching profile on auth change:', e);
           }
-        } catch(e) {
-          console.error("An unexpected error occurred while fetching the profile:", e);
-          setProfile(null);
         }
-      } else {
-        setProfile(null);
       }
-    });
+    );
 
     return () => {
-      authListener.subscription.unsubscribe();
-      clearTimeout(authTimeout);
+      subscription?.unsubscribe();
     };
   }, [isLocalMode, addToast]);
 
