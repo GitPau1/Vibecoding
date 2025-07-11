@@ -1,8 +1,7 @@
 
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase, Database } from '../lib/supabaseClient';
-import { AuthSession, Profile } from '../types';
+import { AuthSession } from '../types';
 import { AuthError, User, Session } from '@supabase/supabase-js';
 import { useToast } from './ToastContext';
 
@@ -60,14 +59,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return;
     }
 
-    // --- New, more robust Supabase auth flow ---
+    // --- New, robust auth flow using onAuthStateChange as the single source of truth ---
     setAuthLoading(true);
 
-    // 1. Fetch the initial session when the provider mounts.
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      if (session) {
-        try {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setSession(session);
+
+        if (session) {
+          // If there's a session, fetch the corresponding profile.
           const { data: userProfile, error } = await supabase
             .from('profiles')
             .select('*')
@@ -75,45 +75,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             .single();
 
           if (error && error.code !== 'PGRST116') {
-            console.error('Error fetching initial profile:', error);
+            console.error('Error fetching profile on auth change:', error);
             setProfile(null);
           } else {
             setProfile(userProfile);
           }
-        } catch (e) {
-          console.error('Error fetching initial profile:', e);
+        } else {
+          // If there's no session, ensure the profile is also cleared.
           setProfile(null);
         }
-      }
-      // Only set loading to false after the initial session and profile are handled.
-      setAuthLoading(false);
-    }).catch(err => {
-      console.error("Error in getSession():", err);
-      setAuthLoading(false);
-    });
 
-    // 2. Set up a listener for subsequent auth state changes (e.g., sign-in, sign-out).
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        setProfile(null); // Reset profile on any auth change to avoid showing stale data
-        if (session) {
-          try {
-            const { data: userProfile, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-            
-            if (error && error.code !== 'PGRST116') {
-              console.error('Error fetching profile on auth change:', error);
-            } else {
-              setProfile(userProfile);
-            }
-          } catch (e) {
-            console.error('Error fetching profile on auth change:', e);
-          }
-        }
+        // Set loading to false only after the session and profile state have been established.
+        setAuthLoading(false);
       }
     );
 
@@ -219,7 +192,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // --- MOCK CHECK ---
     try {
-      const mockUsers: Profile[] = JSON.parse(localStorage.getItem(MOCK_USERS_KEY) || '[]');
+      const mockUsers: UserProfile[] = JSON.parse(localStorage.getItem(MOCK_USERS_KEY) || '[]');
       const userExists = mockUsers.some(user => user.username.toLowerCase() === username.toLowerCase());
       if (userExists) {
         return { available: false, message: '이미 사용 중인 아이디입니다.' };
