@@ -59,39 +59,60 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return;
     }
 
-    // --- New, robust auth flow using onAuthStateChange as the single source of truth ---
     setAuthLoading(true);
 
+    // This function explicitly fetches the session on page load/refresh.
+    // It's the "source of truth" for the initial auth state.
+    const fetchInitialSession = async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error("Error fetching initial session:", error.message);
+      }
+
+      setSession(session);
+
+      if (session) {
+        const { data: userProfile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profileError && profileError.code !== 'PGRST116') {
+          console.error("Error fetching profile on initial load:", profileError.message);
+          setProfile(null);
+        } else {
+          setProfile(userProfile);
+        }
+      }
+      // Crucially, we set loading to false only after the initial check is complete.
+      setAuthLoading(false);
+    };
+
+    fetchInitialSession();
+
+    // This listener handles auth changes that happen *after* initial load,
+    // like user logging in or out in another tab.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setSession(session);
-
         if (session) {
-          // If there's a session, fetch the corresponding profile.
-          const { data: userProfile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-          if (error && error.code !== 'PGRST116') {
-            console.error('Error fetching profile on auth change:', error);
-            setProfile(null);
-          } else {
-            setProfile(userProfile);
-          }
+            const { data: userProfile, error } = await supabase
+                .from('profiles').select('*').eq('id', session.user.id).single();
+            if (error && error.code !== 'PGRST116') {
+                setProfile(null);
+            } else {
+                setProfile(userProfile);
+            }
         } else {
-          // If there's no session, ensure the profile is also cleared.
-          setProfile(null);
+            setProfile(null);
         }
-
-        // Set loading to false only after the session and profile state have been established.
-        setAuthLoading(false);
       }
     );
 
     return () => {
-      subscription?.unsubscribe();
+      subscription.unsubscribe();
     };
   }, [isLocalMode, addToast]);
 

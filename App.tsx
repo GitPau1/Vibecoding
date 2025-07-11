@@ -22,14 +22,15 @@ import XPostPage from './components/XPostPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LoginPage from './components/LoginPage';
 import SignUpPage from './components/SignUpPage';
+import AuthModal from './components/AuthModal';
 
 
 export interface VoteCreationData extends Pick<Vote, 'title' | 'description' | 'type' | 'endDate' | 'imageUrl' | 'players'> {
   options: {label: string}[];
 }
 
-export type ArticleCreationData = Omit<Article, 'id' | 'createdAt' | 'recommendations' | 'userRecommended' | 'views'>;
-export type XPostCreationData = Omit<XPost, 'id' | 'createdAt'>;
+export type ArticleCreationData = Omit<Article, 'id' | 'createdAt' | 'recommendations' | 'userRecommended' | 'views' | 'user_id'>;
+export type XPostCreationData = Omit<XPost, 'id' | 'createdAt' | 'user_id'>;
 
 export type SquadPlayerCreationData = Omit<SquadPlayer, 'id' | 'createdAt'>;
 
@@ -68,10 +69,11 @@ const AppContent: React.FC = () => {
   const [xPosts, setXPosts] = useState<XPost[]>([]);
   const [squadPlayers, setSquadPlayers] = useState<SquadPlayer[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { addToast } = useToast();
-  const { authLoading } = useAuth();
+  const { session, authLoading } = useAuth();
   
   const isLocalMode = supabase === null;
 
@@ -82,7 +84,7 @@ const AppContent: React.FC = () => {
       const { data: voteData, error: voteError } = await supabase!
         .from('votes')
         .select(`
-          id, title, description, type, image_url, end_date, created_at, players,
+          id, title, description, type, image_url, end_date, created_at, players, user_id,
           options:vote_options(id, label, votes, rating_count, comments)
         `)
         .order('created_at', { ascending: false });
@@ -100,6 +102,7 @@ const AppContent: React.FC = () => {
         createdAt: v.created_at,
         imageUrl: v.image_url,
         players: v.players as Player[] | null,
+        user_id: v.user_id,
         options: v.options.map((o: any) => ({
           id: o.id,
           label: o.label,
@@ -129,6 +132,7 @@ const AppContent: React.FC = () => {
         imageUrl: a.image_url,
         recommendations: a.recommendations,
         views: a.views,
+        user_id: a.user_id,
         userRecommended: !!userRecommendedArticles[a.id],
       }));
       setArticles(formattedArticles);
@@ -143,7 +147,8 @@ const AppContent: React.FC = () => {
         id: p.id,
         createdAt: p.created_at,
         description: p.description,
-        postUrl: p.post_url
+        postUrl: p.post_url,
+        user_id: p.user_id
       })));
 
       // Fetch squad players
@@ -204,6 +209,11 @@ const AppContent: React.FC = () => {
   }
 
   const handleVote = async (voteId: string, optionId: string) => {
+    if (!session) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+
     const vote = votes.find(v => v.id === voteId);
     if (!vote) return;
     const option = vote.options.find(o => o.id === optionId);
@@ -240,6 +250,10 @@ const AppContent: React.FC = () => {
   };
   
   const handlePlayerRatingSubmit = async (ratingId: string, playerRatings: { [playerId: number]: { rating: number; comment: string | null; }; }) => {
+    if (!session) {
+        setIsAuthModalOpen(true);
+        return;
+    }
     const updateLocalState = () => {
         setRatings(prevRatings =>
             prevRatings.map(rating => {
@@ -320,6 +334,7 @@ const AppContent: React.FC = () => {
             ...newVoteData,
             id: `mock-vote-${Date.now()}`,
             createdAt: new Date().toISOString(),
+            user_id: 'mock-user-id',
             options: newVoteData.options.map((o, i) => ({
                 id: `new-opt-${i}`,
                 label: o.label,
@@ -340,6 +355,7 @@ const AppContent: React.FC = () => {
                 end_date: newVoteData.endDate,
                 image_url: newVoteData.imageUrl ?? null,
                 players: newVoteData.players ?? null,
+                user_id: session!.user.id
             }).select().single();
 
         if (voteError) throw voteError;
@@ -364,6 +380,7 @@ const AppContent: React.FC = () => {
             endDate: newVoteData.endDate,
             imageUrl: newVoteData.imageUrl,
             players: newVoteData.players,
+            user_id: vote.user_id,
             options: insertedOptions.map(o => ({
                 id: o.id,
                 label: o.label,
@@ -388,6 +405,7 @@ const AppContent: React.FC = () => {
             ...newRatingData,
             id: `mock-rating-${Date.now()}`,
             createdAt: new Date().toISOString(),
+            user_id: 'mock-user-id',
             options: newRatingData.players!.map(p => ({
                 id: String(p.id),
                 label: p.name,
@@ -407,6 +425,7 @@ const AppContent: React.FC = () => {
             type: VoteKind.RATING,
             end_date: newRatingData.endDate,
             players: newRatingData.players ?? null,
+            user_id: session!.user.id,
         }).select().single();
 
         if (voteError) throw voteError;
@@ -431,6 +450,7 @@ const AppContent: React.FC = () => {
             endDate: newRatingData.endDate,
             imageUrl: newRatingData.imageUrl,
             players: newRatingData.players,
+            user_id: vote.user_id,
             options: insertedOptions.map(o => ({
                 id: o.id,
                 label: o.label,
@@ -461,6 +481,7 @@ const AppContent: React.FC = () => {
         recommendations: 0,
         views: 0,
         userRecommended: false,
+        user_id: 'mock-user-id',
       };
       commonLogic(articleToAdd);
       return;
@@ -470,7 +491,8 @@ const AppContent: React.FC = () => {
       const { data, error } = await supabase!.from('articles').insert({
         title: newArticleData.title,
         body: newArticleData.body,
-        image_url: newArticleData.imageUrl ?? null
+        image_url: newArticleData.imageUrl ?? null,
+        user_id: session!.user.id,
       }).select().single();
       if (error) throw error;
       
@@ -482,6 +504,7 @@ const AppContent: React.FC = () => {
         imageUrl: data.image_url || undefined,
         recommendations: 0,
         views: 0,
+        user_id: data.user_id,
         userRecommended: false
       };
 
@@ -493,6 +516,11 @@ const AppContent: React.FC = () => {
   };
 
   const handleRecommendArticle = async (articleId: string) => {
+    if (!session) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+
     const recommendedArticles = JSON.parse(localStorage.getItem('userRecommendedArticles') || '{}');
     if (recommendedArticles[articleId]) {
       addToast('이미 추천한 아티클입니다.', 'info');
@@ -561,6 +589,7 @@ const AppContent: React.FC = () => {
         ...newXPostData,
         id: `mock-x-post-${Date.now()}`,
         createdAt: new Date().toISOString(),
+        user_id: 'mock-user-id',
       };
       commonLogic(postToAdd);
       return;
@@ -569,7 +598,8 @@ const AppContent: React.FC = () => {
     try {
       const { data, error } = await supabase!.from('x_posts').insert({
         description: newXPostData.description,
-        post_url: newXPostData.postUrl
+        post_url: newXPostData.postUrl,
+        user_id: session!.user.id,
       }).select().single();
 
       if (error) throw error;
@@ -579,6 +609,7 @@ const AppContent: React.FC = () => {
         createdAt: data.created_at,
         description: data.description,
         postUrl: data.post_url,
+        user_id: data.user_id,
       };
 
       commonLogic(newPost);
@@ -747,6 +778,7 @@ const AppContent: React.FC = () => {
           </button>
         </div>
       </footer>
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </div>
   );
 };

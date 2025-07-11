@@ -37,6 +37,7 @@ export interface Vote {
   userVote?: string; // The id of the option the user voted for
   userRatings?: { [key: number]: { rating: number; comment: string | null } };
   players?: Player[];
+  user_id?: string;
 }
 
 // New Article Type
@@ -49,6 +50,7 @@ export interface Article {
   recommendations: number;
   views: number;
   userRecommended?: boolean;
+  user_id?: string;
 }
 
 // New XPost Type
@@ -57,6 +59,7 @@ export interface XPost {
   createdAt: string;
   description: string;
   postUrl: string;
+  user_id?: string;
 }
 
 // New Squad Types
