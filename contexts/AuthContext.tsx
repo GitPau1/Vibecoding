@@ -1,9 +1,11 @@
 
+
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { supabase, Database } from '../lib/supabaseClient';
 import { AuthSession, Profile } from '../types';
 import { AuthError, User, Session } from '@supabase/supabase-js';
 import { useToast } from './ToastContext';
+import { authStorage } from '../lib/authStorage';
 
 type UserProfile = Database['public']['Tables']['profiles']['Row'];
 
@@ -11,7 +13,7 @@ interface AuthContextType {
   session: AuthSession | null;
   profile: UserProfile | null;
   signUp: (args: { username: string; password: string; nickname: string; }) => Promise<{ user: User | null; session: Session | null; error: AuthError | null; }>;
-  signIn: (args: { username: string; password: string; }) => Promise<{ error: AuthError | null; }>;
+  signIn: (args: { username: string; password: string; rememberMe: boolean; }) => Promise<{ error: AuthError | null; }>;
   signOut: () => Promise<{ error: AuthError | null; }>;
   authLoading: boolean;
   checkUsernameAvailability: (username: string) => Promise<{ available: boolean, message: string }>;
@@ -41,9 +43,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     if (isLocalMode) {
       try {
-        const storedSession = localStorage.getItem(MOCK_SESSION_KEY);
-        if (storedSession) {
-          const mockSession: AuthSession = JSON.parse(storedSession);
+        const storedSessionJson = localStorage.getItem(MOCK_SESSION_KEY) || sessionStorage.getItem(MOCK_SESSION_KEY);
+        if (storedSessionJson) {
+          const mockSession: AuthSession = JSON.parse(storedSessionJson);
           setSession(mockSession);
           const storedProfile = mockSession.user?.user_metadata as UserProfile;
           if (storedProfile) {
@@ -51,8 +53,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           }
         }
       } catch (e) {
-        console.error("Failed to parse mock session from localStorage", e);
+        console.error("Failed to parse mock session from storage", e);
         localStorage.removeItem(MOCK_SESSION_KEY);
+        sessionStorage.removeItem(MOCK_SESSION_KEY);
       }
       setAuthLoading(false);
       return;
@@ -150,6 +153,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const signUp = useCallback(async ({ username, password, nickname }: { username: string; password: string; nickname: string; }) => {
     if (!isLocalMode) {
+      authStorage.setPersistence(true); // Always persist on sign-up for better UX
       const { available } = await checkUsernameAvailability(username);
       if (!available) {
           return { user: null, session: null, error: new AuthError('이미 사용 중인 아이디입니다.') };
@@ -212,6 +216,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         refresh_token: `mock-refresh-${Date.now()}`,
         user: mockUser,
       };
+      // In mock mode, sign-up always persists the session.
       localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify(mockSession));
       
       // Manually update state for mock mode
@@ -224,8 +229,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [isLocalMode, checkUsernameAvailability]);
   
-  const signIn = useCallback(async ({ username, password }: { username: string; password: string; }) => {
+  const signIn = useCallback(async ({ username, password, rememberMe }: { username: string; password: string; rememberMe: boolean; }) => {
     if (!isLocalMode) {
+      authStorage.setPersistence(rememberMe);
       const email = `user.${username.toLowerCase()}@example.com`;
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -257,7 +263,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       };
 
-      localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify(mockSession));
+      const storage = rememberMe ? localStorage : sessionStorage;
+      // Clear the other storage to prevent conflicts
+      if (rememberMe) sessionStorage.removeItem(MOCK_SESSION_KEY); else localStorage.removeItem(MOCK_SESSION_KEY);
+      storage.setItem(MOCK_SESSION_KEY, JSON.stringify(mockSession));
+      
       setSession(mockSession);
       setProfile(foundUser);
       return { error: null };
@@ -278,6 +288,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     try {
       localStorage.removeItem(MOCK_SESSION_KEY);
+      sessionStorage.removeItem(MOCK_SESSION_KEY);
       setSession(null);
       setProfile(null);
       return { error: null };
