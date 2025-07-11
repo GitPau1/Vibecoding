@@ -71,27 +71,53 @@ const AppContent: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { addToast } = useToast();
-  const { authLoading } = useAuth();
+  const { session, authLoading } = useAuth();
   
   const isLocalMode = supabase === null;
 
   const fetchAllData = useCallback(async () => {
     if (isLocalMode) return;
     try {
-      // Fetch votes and ratings
-      const { data: voteData, error: voteError } = await supabase!
-        .from('votes')
-        .select(`
-          id, title, description, type, image_url, end_date, created_at, players,
-          options:vote_options(id, label, votes, rating_count, comments)
-        `)
-        .order('created_at', { ascending: false });
-      if (voteError) throw voteError;
+      const userId = session?.user?.id;
 
-      const userVotes = JSON.parse(localStorage.getItem('userVotes') || '{}');
-      const userRatings = JSON.parse(localStorage.getItem('userRatings') || '{}');
+      // Parallel fetch for all content and user data
+      const [
+        voteRes, 
+        articleRes, 
+        xPostRes, 
+        squadRes, 
+        userVoteRes, 
+        userRatingRes, 
+        userRecRes
+      ] = await Promise.all([
+        supabase.from('votes').select(`*, options:vote_options(*)`).order('created_at', { ascending: false }),
+        supabase.from('articles').select('*').order('created_at', { ascending: false }),
+        supabase.from('x_posts').select('*').order('created_at', { ascending: false }),
+        supabase.from('squad_players').select('*').order('number', { ascending: true }),
+        userId ? supabase.from('user_votes').select('vote_id, option_id').eq('user_id', userId) : Promise.resolve({ data: [] }),
+        userId ? supabase.from('user_ratings').select('rating_id, option_id, rating, comment').eq('user_id', userId) : Promise.resolve({ data: [] }),
+        userId ? supabase.from('user_article_recommendations').select('article_id').eq('user_id', userId) : Promise.resolve({ data: [] })
+      ]);
+      
+      // Process user data into maps for efficient lookup
+      const userVotesMap = userVoteRes.data?.reduce((acc, v) => ({ ...acc, [v.vote_id]: v.option_id }), {}) || {};
+      const userRatingsMap = userRatingRes.data?.reduce((acc, r) => {
+        if (!acc[r.rating_id]) acc[r.rating_id] = {};
+        const vote = voteRes.data?.find(v => v.id === r.rating_id);
+        if (!vote) return acc;
+        const option = vote.options.find((o: any) => o.id === r.option_id);
+        if (!option) return acc;
+        const player = (vote.players as Player[] | null)?.find(p => p.name === option.label);
+        
+        if (player) {
+          acc[r.rating_id][player.id] = { rating: r.rating, comment: r.comment };
+        }
+        return acc;
+      }, {} as { [key: string]: { [key: number]: { rating: number; comment: string | null } } }) || {};
+      const userRecsMap = userRecRes.data?.reduce((acc, r) => ({ ...acc, [r.article_id]: true }), {}) || {};
 
-      const allVotes: Vote[] = voteData.map((v: any) => ({
+      // Process votes and ratings
+      const allVotes: Vote[] = voteRes.data!.map((v: any) => ({
         id: v.id,
         title: v.title,
         description: v.description,
@@ -107,82 +133,41 @@ const AppContent: React.FC = () => {
           ratingCount: o.rating_count,
           comments: o.comments as string[] | undefined,
         })),
-        userVote: userVotes[v.id],
-        userRatings: userRatings[v.id],
+        userVote: userVotesMap[v.id],
+        userRatings: userRatingsMap[v.id],
       }));
       setVotes(allVotes.filter(v => v.type !== VoteKind.RATING));
       setRatings(allVotes.filter(v => v.type === VoteKind.RATING));
-
-      // Fetch articles
-      const { data: articleData, error: articleError } = await supabase!
-        .from('articles')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (articleError) throw articleError;
-
-      const userRecommendedArticles = JSON.parse(localStorage.getItem('userRecommendedArticles') || '{}');
-      const formattedArticles: Article[] = articleData.map((a: any) => ({
-        id: a.id,
-        createdAt: a.created_at,
-        title: a.title,
-        body: a.body,
+      
+      // Process articles
+      setArticles(articleRes.data!.map((a: any) => ({
+        ...a,
         imageUrl: a.image_url,
-        recommendations: a.recommendations,
-        views: a.views,
-        userRecommended: !!userRecommendedArticles[a.id],
-      }));
-      setArticles(formattedArticles);
-      
-      // Fetch X posts
-      const { data: xPostData, error: xPostError } = await supabase!
-        .from('x_posts')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (xPostError) throw xPostError;
-      setXPosts(xPostData.map((p: any) => ({
-        id: p.id,
-        createdAt: p.created_at,
-        description: p.description,
-        postUrl: p.post_url
+        userRecommended: !!userRecsMap[a.id]
       })));
 
-      // Fetch squad players
-      const { data: squadData, error: squadError } = await supabase!
-        .from('squad_players')
-        .select('*')
-        .order('number', { ascending: true });
-      if (squadError) throw squadError;
-      setSquadPlayers(squadData.map((p: any) => ({
-        id: p.id,
-        createdAt: p.created_at,
-        name: p.name,
-        number: p.number,
-        position: p.position as PlayerPosition,
-        photoUrl: p.photo_url
-      })));
-      
+      // Process other data
+      setXPosts(xPostRes.data!.map((p: any) => ({ ...p, postUrl: p.post_url })));
+      setSquadPlayers(squadRes.data!.map((p: any) => ({ ...p, photoUrl: p.photo_url })));
+
     } catch (error: any) {
       console.error('Error fetching data:', error);
       addToast(`데이터 로딩 오류: ${error.message}`, 'error');
     } finally {
       setDataLoading(false);
     }
-  }, [addToast, isLocalMode]);
+  }, [isLocalMode, session, addToast]);
   
   // Data loading effect
   useEffect(() => {
     if (authLoading) return; // Wait for auth to resolve
 
     if (isLocalMode) {
-      const userVotes = JSON.parse(localStorage.getItem('userVotes') || '{}');
-      const userRatings = JSON.parse(localStorage.getItem('userRatings') || '{}');
-      const userRecommendedArticles = JSON.parse(localStorage.getItem('userRecommendedArticles') || '{}');
-
-      setVotes(JSON.parse(JSON.stringify(MOCK_VOTES)).map((v: Vote) => ({ ...v, userVote: userVotes[v.id] })));
-      setRatings(JSON.parse(JSON.stringify(MOCK_RATINGS)).map((r: Vote) => ({ ...r, userRatings: userRatings[r.id] })));
-      setArticles(JSON.parse(JSON.stringify(MOCK_ARTICLES)).map((a: Article) => ({ ...a, userRecommended: !!userRecommendedArticles[a.id] })));
-      setXPosts(JSON.parse(JSON.stringify(MOCK_X_POSTS)));
-      setSquadPlayers(JSON.parse(JSON.stringify(MOCK_SQUAD_PLAYERS)));
+      setVotes(MOCK_VOTES);
+      setRatings(MOCK_RATINGS);
+      setArticles(MOCK_ARTICLES);
+      setXPosts(MOCK_X_POSTS);
+      setSquadPlayers(MOCK_SQUAD_PLAYERS);
       setDataLoading(false);
       addToast('Supabase 연결 실패. 로컬 모드로 실행됩니다.', 'info');
     } else {
@@ -204,136 +189,104 @@ const AppContent: React.FC = () => {
   }
 
   const handleVote = async (voteId: string, optionId: string) => {
-    const vote = votes.find(v => v.id === voteId);
-    if (!vote) return;
-    const option = vote.options.find(o => o.id === optionId);
-    if (!option) return;
-
-    const updateLocalState = () => {
-      setVotes(prevVotes =>
-        prevVotes.map(v => {
-          if (v.id === voteId) {
-            const newOptions = v.options.map(o =>
-              o.id === optionId ? { ...o, votes: o.votes + 1 } : o
-            );
-            return { ...v, options: newOptions, userVote: optionId };
-          }
-          return v;
-        })
-      );
-      const userVotes = JSON.parse(localStorage.getItem('userVotes') || '{}');
-      userVotes[voteId] = optionId;
-      localStorage.setItem('userVotes', JSON.stringify(userVotes));
-    };
-
-    if (isLocalMode) {
-      updateLocalState();
-      return;
-    }
-
-    const { error } = await supabase!.rpc('increment_vote', { option_id_to_inc: option.id });
-    if (error) {
-      addToast(`투표 처리 중 오류가 발생했습니다: ${error.message}`, 'error');
-      return;
-    }
-    updateLocalState();
-  };
-  
-  const handlePlayerRatingSubmit = async (ratingId: string, playerRatings: { [playerId: number]: { rating: number; comment: string | null; }; }) => {
-    const updateLocalState = () => {
-        setRatings(prevRatings =>
-            prevRatings.map(rating => {
-                if (rating.id === ratingId) {
-                    const newOptions = rating.options.map(option => {
-                        const player = rating.players?.find(p => p.name === option.label);
-                        if (!player) return option;
-
-                        const playerRatingData = playerRatings[player.id];
-                        if (playerRatingData) {
-                            return {
-                                ...option,
-                                votes: option.votes + playerRatingData.rating,
-                                ratingCount: (option.ratingCount || 0) + 1,
-                                comments: playerRatingData.comment
-                                    ? [...(option.comments || []), playerRatingData.comment]
-                                    : (option.comments || []),
-                            };
-                        }
-                        return option;
-                    });
-                    const userRatings = JSON.parse(localStorage.getItem('userRatings') || '{}');
-                    userRatings[ratingId] = playerRatings;
-                    localStorage.setItem('userRatings', JSON.stringify(userRatings));
-                    return { ...rating, options: newOptions, userRatings: playerRatings };
-                }
-                return rating;
-            })
-        );
-        addToast('평점이 제출되었습니다. 감사합니다!', 'success');
-    };
-
-    if (isLocalMode) {
-      updateLocalState();
+    if (!session) {
+      addToast('로그인이 필요한 기능입니다.', 'info');
       return;
     }
     
-    try {
-        const rating = ratings.find(r => r.id === ratingId);
-        if (!rating) throw new Error("Rating not found");
+    // Optimistic update
+    setVotes(prevVotes =>
+      prevVotes.map(v => {
+        if (v.id === voteId) {
+          return { ...v, userVote: optionId }; // Show results immediately
+        }
+        return v;
+      })
+    );
+    
+    if (isLocalMode) return;
+    
+    const { error } = await supabase.rpc('handle_vote', { target_option_id: optionId });
+    if (error) {
+      addToast(`투표 처리 중 오류가 발생했습니다: ${error.message}`, 'error');
+      fetchAllData(); // Revert optimistic update on error
+    } else {
+      fetchAllData(); // Refetch to get accurate vote counts
+    }
+  };
+  
+  const handlePlayerRatingSubmit = async (ratingId: string, playerRatings: { [playerId: number]: { rating: number; comment: string | null; }; }) => {
+    if (!session) {
+        addToast('로그인이 필요한 기능입니다.', 'info');
+        return;
+    }
 
-        const updates = Object.entries(playerRatings).map(([playerId, data]) => {
-            const player = rating.players?.find(p => p.id === Number(playerId));
-            if (!player) return null;
-            const option = rating.options.find(o => o.label === player.name);
-            if (!option) return null;
-            
-            const newComments = data.comment ? [...(option.comments || []), data.comment] : (option.comments || []);
+    const rating = ratings.find(r => r.id === ratingId);
+    if (!rating || !rating.players) {
+        addToast('평가 대상을 찾을 수 없습니다.', 'error');
+        return;
+    }
+    
+    // Optimistic update
+    setRatings(prevRatings =>
+        prevRatings.map(r => 
+            r.id === ratingId ? { ...r, userRatings: playerRatings } : r
+        )
+    );
 
-            const payload: Database['public']['Tables']['vote_options']['Update'] = {
-                votes: option.votes + data.rating,
-                rating_count: (option.ratingCount || 0) + 1,
-                comments: newComments
-            };
+    if (isLocalMode) {
+        addToast('평점이 제출되었습니다. 감사합니다!', 'success');
+        return;
+    }
+    
+    const ratingsToInsert = Object.entries(playerRatings).map(([playerIdStr, data]) => {
+        const player = rating.players!.find(p => p.id === Number(playerIdStr));
+        const option = rating.options.find(o => o.label === player?.name);
+        if (!option) return null;
+        
+        return {
+            user_id: session.user.id,
+            rating_id: ratingId,
+            option_id: option.id,
+            rating: data.rating,
+            comment: data.comment
+        };
+    }).filter((r): r is NonNullable<typeof r> => !!r);
 
-            return supabase!.from('vote_options').update(payload).eq('id', option.id);
-        }).filter(Boolean);
+    if (ratingsToInsert.length !== rating.players.length) {
+        addToast('평점 데이터를 처리하는 중 오류가 발생했습니다.', 'error');
+        fetchAllData(); // Revert
+        return;
+    }
+    
+    const { error } = await supabase.from('user_ratings').insert(ratingsToInsert);
 
-        const results = await Promise.all(updates);
-        const dbError = results.find(res => res && res.error);
-        if (dbError && dbError.error) throw dbError.error;
-
-        updateLocalState();
-    } catch (error: any) {
+    if (error) {
         addToast(`평점 제출 실패: ${error.message}`, 'error');
+        fetchAllData(); // Revert
+    } else {
+        addToast('평점이 제출되었습니다. 감사합니다!', 'success');
+        fetchAllData(); // Refetch to get new aggregates
     }
   };
 
   const handleCreateVote = async (newVoteData: VoteCreationData) => {
-    const commonLogic = (newVote: Vote) => {
-        setVotes((prev: Vote[]) => [newVote, ...prev]);
-        navigate('/');
-        addToast('투표가 성공적으로 생성되었습니다.', 'success');
-    };
-
+    // ... creation logic is already protected by ProtectedRoute, so it's fine
     if (isLocalMode) {
         const voteToAdd: Vote = {
             ...newVoteData,
             id: `mock-vote-${Date.now()}`,
             createdAt: new Date().toISOString(),
-            options: newVoteData.options.map((o, i) => ({
-                id: `new-opt-${i}`,
-                label: o.label,
-                votes: 0,
-            })),
+            options: newVoteData.options.map((o, i) => ({ id: `new-opt-${i}`, label: o.label, votes: 0 })),
         };
-        commonLogic(voteToAdd);
+        setVotes((prev: Vote[]) => [voteToAdd, ...prev]);
+        navigate('/');
+        addToast('투표가 성공적으로 생성되었습니다.', 'success');
         return;
     }
 
     try {
-        const { data: vote, error: voteError } = await supabase!
-            .from('votes')
-            .insert({
+        const { data: vote, error: voteError } = await supabase.from('votes').insert({
                 title: newVoteData.title,
                 description: newVoteData.description ?? null,
                 type: newVoteData.type,
@@ -343,65 +296,36 @@ const AppContent: React.FC = () => {
             }).select().single();
 
         if (voteError) throw voteError;
-        if (!vote) throw new Error("Vote creation failed, no data returned.");
 
-        type VoteOptionInsert = Database['public']['Tables']['vote_options']['Insert'];
-        const optionsToInsert: VoteOptionInsert[] = newVoteData.options.map((opt) => ({
-            vote_id: vote.id,
-            label: opt.label,
-        }));
-        
-        const { data: insertedOptions, error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert).select();
+        const optionsToInsert = newVoteData.options.map((opt) => ({ vote_id: vote.id, label: opt.label }));
+        const { error: optionsError } = await supabase.from('vote_options').insert(optionsToInsert);
         if (optionsError) throw optionsError;
-        if (!insertedOptions) throw new Error("Could not retrieve created options.");
         
-        const newVoteWithDetails: Vote = {
-            id: vote.id,
-            createdAt: vote.created_at,
-            title: newVoteData.title,
-            description: newVoteData.description,
-            type: newVoteData.type,
-            endDate: newVoteData.endDate,
-            imageUrl: newVoteData.imageUrl,
-            players: newVoteData.players,
-            options: insertedOptions.map(o => ({
-                id: o.id,
-                label: o.label,
-                votes: 0,
-            })),
-        };
-        commonLogic(newVoteWithDetails);
+        await fetchAllData();
+        navigate('/');
+        addToast('투표가 성공적으로 생성되었습니다.', 'success');
     } catch (error: any) {
         addToast(`투표 생성 실패: ${error.message}`, 'error');
     }
   };
 
   const handleCreateRating = async (newRatingData: VoteCreationData) => {
-     const commonLogic = (newRating: Vote) => {
-        setRatings(prev => [newRating, ...prev]);
-        navigate('/');
-        addToast('선수 평점이 성공적으로 생성되었습니다.', 'success');
-    };
-
-    if (isLocalMode) {
+    // ... creation logic is fine
+     if (isLocalMode) {
         const ratingToAdd: Vote = {
             ...newRatingData,
             id: `mock-rating-${Date.now()}`,
             createdAt: new Date().toISOString(),
-            options: newRatingData.players!.map(p => ({
-                id: String(p.id),
-                label: p.name,
-                votes: 0,
-                ratingCount: 0,
-                comments: [],
-            })),
+            options: newRatingData.players!.map(p => ({ id: String(p.id), label: p.name, votes: 0, ratingCount: 0, comments: [] })),
         };
-        commonLogic(ratingToAdd);
+        setRatings(prev => [ratingToAdd, ...prev]);
+        navigate('/');
+        addToast('선수 평점이 성공적으로 생성되었습니다.', 'success');
         return;
     }
 
     try {
-        const { data: vote, error: voteError } = await supabase!.from('votes').insert({
+        const { data: vote, error: voteError } = await supabase.from('votes').insert({
             title: newRatingData.title,
             description: newRatingData.description ?? null,
             type: VoteKind.RATING,
@@ -410,36 +334,14 @@ const AppContent: React.FC = () => {
         }).select().single();
 
         if (voteError) throw voteError;
-        if (!vote) throw new Error("Rating creation failed");
 
-        type VoteOptionInsert = Database['public']['Tables']['vote_options']['Insert'];
-        const optionsToInsert: VoteOptionInsert[] = newRatingData.players!.map(p => ({
-            vote_id: vote.id,
-            label: p.name,
-        }));
-        
-        const { data: insertedOptions, error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert).select();
+        const optionsToInsert = newRatingData.players!.map(p => ({ vote_id: vote.id, label: p.name }));
+        const { error: optionsError } = await supabase.from('vote_options').insert(optionsToInsert);
         if (optionsError) throw optionsError;
-        if (!insertedOptions) throw new Error("Failed to get created options back");
 
-        const newRatingWithDetails: Vote = {
-            id: vote.id,
-            createdAt: vote.created_at,
-            title: newRatingData.title,
-            description: newRatingData.description,
-            type: newRatingData.type,
-            endDate: newRatingData.endDate,
-            imageUrl: newRatingData.imageUrl,
-            players: newRatingData.players,
-            options: insertedOptions.map(o => ({
-                id: o.id,
-                label: o.label,
-                votes: o.votes,
-                ratingCount: o.rating_count || 0,
-                comments: o.comments || [],
-            })),
-        };
-        commonLogic(newRatingWithDetails);
+        await fetchAllData();
+        navigate('/');
+        addToast('선수 평점이 성공적으로 생성되었습니다.', 'success');
 
     } catch (error: any) {
         addToast(`평점 생성 실패: ${error.message}`, 'error');
@@ -447,141 +349,80 @@ const AppContent: React.FC = () => {
   };
 
   const handleCreateArticle = async (newArticleData: ArticleCreationData) => {
-    const commonLogic = (newArticle: Article) => {
-      setArticles(prev => [newArticle, ...prev]);
+    // ... creation logic is fine
+    if (isLocalMode) {
+      const articleToAdd: Article = { ...newArticleData, id: `mock-article-${Date.now()}`, createdAt: new Date().toISOString(), recommendations: 0, views: 0, userRecommended: false };
+      setArticles(prev => [articleToAdd, ...prev]);
       navigate('/');
       addToast('아티클이 성공적으로 생성되었습니다.', 'success');
-    };
-
-    if (isLocalMode) {
-      const articleToAdd: Article = {
-        ...newArticleData,
-        id: `mock-article-${Date.now()}`,
-        createdAt: new Date().toISOString(),
-        recommendations: 0,
-        views: 0,
-        userRecommended: false,
-      };
-      commonLogic(articleToAdd);
       return;
     }
 
     try {
-      const { data, error } = await supabase!.from('articles').insert({
-        title: newArticleData.title,
-        body: newArticleData.body,
-        image_url: newArticleData.imageUrl ?? null
-      }).select().single();
+      const { error } = await supabase.from('articles').insert({ title: newArticleData.title, body: newArticleData.body, image_url: newArticleData.imageUrl ?? null });
       if (error) throw error;
-      
-      const newArticle: Article = {
-        id: data.id,
-        createdAt: data.created_at,
-        title: data.title,
-        body: data.body,
-        imageUrl: data.image_url || undefined,
-        recommendations: 0,
-        views: 0,
-        userRecommended: false
-      };
-
-      commonLogic(newArticle);
+      await fetchAllData();
+      navigate('/');
+      addToast('아티클이 성공적으로 생성되었습니다.', 'success');
     } catch (error: any) {
       addToast(`아티클 생성 실패: ${error.message}`, 'error');
     }
-
   };
 
   const handleRecommendArticle = async (articleId: string) => {
-    const recommendedArticles = JSON.parse(localStorage.getItem('userRecommendedArticles') || '{}');
-    if (recommendedArticles[articleId]) {
-      addToast('이미 추천한 아티클입니다.', 'info');
+    if (!session) {
+      addToast('로그인이 필요한 기능입니다.', 'info');
       return;
     }
-    
-    const updateLocalState = () => {
-      setArticles(prev => prev.map(a =>
-        a.id === articleId
-          ? { ...a, recommendations: a.recommendations + 1, userRecommended: true }
-          : a
-      ));
-      recommendedArticles[articleId] = true;
-      localStorage.setItem('userRecommendedArticles', JSON.stringify(recommendedArticles));
-    };
 
-    if (isLocalMode) {
-      updateLocalState();
-      return;
-    }
+    // Optimistic update
+    setArticles(prev => prev.map(a =>
+      a.id === articleId ? { ...a, recommendations: a.recommendations + 1, userRecommended: true } : a
+    ));
     
-    const { error } = await supabase!.rpc('increment_recommendation', { article_id_to_inc: articleId });
+    if (isLocalMode) return;
+    
+    const { error } = await supabase.rpc('handle_recommendation', { target_article_id: articleId });
     if (error) {
       addToast(`추천 처리 중 오류가 발생했습니다: ${error.message}`, 'error');
-      return;
+      fetchAllData(); // Revert
     }
-    updateLocalState();
-
   };
 
   const handleViewArticle = async (articleId: string) => {
     const viewedArticles = JSON.parse(sessionStorage.getItem('viewedArticles') || '{}');
-    if (viewedArticles[articleId]) {
-      return; // Already viewed in this session
-    }
-
-    const updateLocalState = () => {
-      setArticles(prev => prev.map(a => 
-        a.id === articleId ? { ...a, views: (a.views || 0) + 1 } : a
-      ));
-      viewedArticles[articleId] = true;
-      sessionStorage.setItem('viewedArticles', JSON.stringify(viewedArticles));
-    };
+    if (viewedArticles[articleId]) return;
 
     if (isLocalMode) {
-      updateLocalState();
+      setArticles(prev => prev.map(a => a.id === articleId ? { ...a, views: (a.views || 0) + 1 } : a));
+      viewedArticles[articleId] = true;
+      sessionStorage.setItem('viewedArticles', JSON.stringify(viewedArticles));
       return;
     }
 
-    const { error } = await supabase!.rpc('increment_article_view', { article_id_to_inc: articleId });
-    if (error) {
-      console.error(`Failed to increment view for article ${articleId}:`, error.message);
+    const { error } = await supabase.rpc('increment_article_view', { article_id_to_inc: articleId });
+    if (!error) {
+        setArticles(prev => prev.map(a => a.id === articleId ? { ...a, views: (a.views || 0) + 1 } : a));
+        viewedArticles[articleId] = true;
+        sessionStorage.setItem('viewedArticles', JSON.stringify(viewedArticles));
     }
-    updateLocalState();
   };
 
   const handleCreateXPost = async (newXPostData: XPostCreationData) => {
-    const commonLogic = (newPost: XPost) => {
-      setXPosts((prev: XPost[]) => [newPost, ...prev]);
+    // ... creation logic is fine
+    if (isLocalMode) {
+      const postToAdd: XPost = { ...newXPostData, id: `mock-x-post-${Date.now()}`, createdAt: new Date().toISOString() };
+      setXPosts((prev: XPost[]) => [postToAdd, ...prev]);
       navigate('/');
       addToast('최신 소식이 성공적으로 등록되었습니다.', 'success');
-    };
-
-    if (isLocalMode) {
-      const postToAdd: XPost = {
-        ...newXPostData,
-        id: `mock-x-post-${Date.now()}`,
-        createdAt: new Date().toISOString(),
-      };
-      commonLogic(postToAdd);
       return;
     }
-
     try {
-      const { data, error } = await supabase!.from('x_posts').insert({
-        description: newXPostData.description,
-        post_url: newXPostData.postUrl
-      }).select().single();
-
+      const { error } = await supabase.from('x_posts').insert({ description: newXPostData.description, post_url: newXPostData.postUrl });
       if (error) throw error;
-      
-      const newPost: XPost = {
-        id: data.id,
-        createdAt: data.created_at,
-        description: data.description,
-        postUrl: data.post_url,
-      };
-
-      commonLogic(newPost);
+      await fetchAllData();
+      navigate('/');
+      addToast('최신 소식이 성공적으로 등록되었습니다.', 'success');
     } catch (error: any) {
       addToast(`소식 등록 실패: ${error.message}`, 'error');
     }
@@ -592,72 +433,37 @@ const AppContent: React.FC = () => {
       addToast('로컬 모드에서는 오류 제보를 할 수 없습니다.', 'error');
       return;
     }
-
+    // ... This is fine as it's an anonymous action
     try {
       let screenshot_url: string | null = null;
       if (screenshotFile) {
         const filePath = `public/${Date.now()}-${screenshotFile.name}`;
-        const { error: uploadError } = await supabase!.storage
-          .from('bug_screenshots')
-          .upload(filePath, screenshotFile);
-        
+        const { error: uploadError } = await supabase.storage.from('bug_screenshots').upload(filePath, screenshotFile);
         if (uploadError) throw uploadError;
-
-        const { data: urlData } = supabase!.storage
-          .from('bug_screenshots')
-          .getPublicUrl(filePath);
-        
+        const { data: urlData } = supabase.storage.from('bug_screenshots').getPublicUrl(filePath);
         screenshot_url = urlData.publicUrl;
       }
-      
-      const { error: insertError } = await supabase!.from('bug_reports').insert({
-        title,
-        description,
-        url,
-        screenshot_url
-      });
-
+      const { error: insertError } = await supabase.from('bug_reports').insert({ title, description, url, screenshot_url });
       if (insertError) throw insertError;
-
       addToast('오류 제보가 성공적으로 제출되었습니다. 감사합니다!', 'success');
       navigate('/');
-
     } catch (error: any) {
       addToast(`오류 제보 제출 실패: ${error.message}`, 'error');
-      console.error('Bug report submission error:', error);
     }
   };
 
+  // Squad handlers are already protected by ProtectedRoute, so they are fine.
   const handleCreateSquadPlayer = async (playerData: SquadPlayerCreationData) => {
     if (isLocalMode) {
-      const newPlayer: SquadPlayer = {
-        ...playerData,
-        id: `sq-player-${Date.now()}`,
-        createdAt: new Date().toISOString(),
-      };
+      const newPlayer: SquadPlayer = { ...playerData, id: `sq-player-${Date.now()}`, createdAt: new Date().toISOString() };
       setSquadPlayers(prev => [...prev, newPlayer].sort((a,b) => a.number - b.number));
       addToast('선수가 추가되었습니다.', 'success');
       return;
     }
-
     try {
-      const { data, error } = await supabase!.from('squad_players').insert({
-        name: playerData.name,
-        number: playerData.number,
-        position: playerData.position,
-        photo_url: playerData.photoUrl ?? null,
-      }).select().single();
-
+      const { error } = await supabase.from('squad_players').insert({ name: playerData.name, number: playerData.number, position: playerData.position, photo_url: playerData.photoUrl ?? null });
       if (error) throw error;
-      const newPlayer: SquadPlayer = {
-        id: data.id,
-        createdAt: data.created_at,
-        name: data.name,
-        number: data.number,
-        position: data.position as PlayerPosition,
-        photoUrl: data.photo_url || undefined,
-      };
-      setSquadPlayers(prev => [...prev, newPlayer].sort((a,b) => a.number - b.number));
+      await fetchAllData();
       addToast('선수가 추가되었습니다.', 'success');
     } catch (error: any) {
       addToast(`선수 추가 실패: ${error.message}`, 'error');
@@ -670,25 +476,10 @@ const AppContent: React.FC = () => {
       addToast('선수 정보가 수정되었습니다.', 'success');
       return;
     }
-    
     try {
-      const { data, error } = await supabase!.from('squad_players').update({
-        name: playerData.name,
-        number: playerData.number,
-        position: playerData.position,
-        photo_url: playerData.photoUrl ?? null,
-      }).eq('id', playerId).select().single();
-
+      const { error } = await supabase.from('squad_players').update({ name: playerData.name, number: playerData.number, position: playerData.position, photo_url: playerData.photoUrl ?? null }).eq('id', playerId);
       if (error) throw error;
-       const updatedPlayer: SquadPlayer = {
-        id: data.id,
-        createdAt: data.created_at,
-        name: data.name,
-        number: data.number,
-        position: data.position as PlayerPosition,
-        photoUrl: data.photo_url || undefined,
-      };
-      setSquadPlayers(prev => prev.map(p => p.id === playerId ? updatedPlayer : p).sort((a,b) => a.number - b.number));
+      await fetchAllData();
       addToast('선수 정보가 수정되었습니다.', 'success');
     } catch (error: any) {
       addToast(`선수 정보 수정 실패: ${error.message}`, 'error');
@@ -701,11 +492,10 @@ const AppContent: React.FC = () => {
       addToast('선수가 삭제되었습니다.', 'success');
       return;
     }
-
     try {
-      const { error } = await supabase!.from('squad_players').delete().eq('id', playerId);
+      const { error } = await supabase.from('squad_players').delete().eq('id', playerId);
       if (error) throw error;
-      setSquadPlayers(prev => prev.filter(p => p.id !== playerId));
+      await fetchAllData();
       addToast('선수가 삭제되었습니다.', 'success');
     } catch (error: any) {
       addToast(`선수 삭제 실패: ${error.message}`, 'error');
