@@ -1,6 +1,5 @@
 
-
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { supabase, Database } from '../lib/supabaseClient';
 import { AuthSession, Profile } from '../types';
 import { AuthError, User, Session } from '@supabase/supabase-js';
@@ -20,7 +19,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Local storage keys for mock auth
 const MOCK_USERS_KEY = 'soccer-vote-mock-users';
 const MOCK_SESSION_KEY = 'soccer-vote-mock-session';
 
@@ -60,16 +58,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return;
     }
 
-    // This function handles the initial check.
+    // This function handles the initial check and sets up the listener.
     const initializeAuth = async () => {
       try {
-        // getSession is the key to solving the refresh problem.
-        // It reliably gets the session from storage on page load.
-        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        // Step 1: Reliably get the session on initial load.
+        const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
 
-        if (error) {
-            console.error("Error getting session:", error);
-            addToast("세션 정보를 가져오는 중 오류가 발생했습니다.", "error");
+        if (sessionError) {
+          console.error("Error getting session:", sessionError);
+          addToast("세션 정보를 가져오는 중 오류가 발생했습니다.", "error");
         } else if (initialSession) {
             setSession(initialSession as AuthSession);
             const { data: userProfile, error: profileError } = await supabase
@@ -87,22 +84,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } catch (e) {
           console.error("Unexpected error during auth initialization:", e);
       } finally {
-        // Crucially, set loading to false *after* the initial check is complete.
+        // Step 2: Crucially, set loading to false *after* the initial check is complete.
         setAuthLoading(false);
       }
     };
 
     initializeAuth();
 
-    // onAuthStateChange will handle subsequent auth events (SIGN_IN, SIGN_OUT, etc.).
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session as AuthSession | null);
+    // Step 3: Set up the listener for subsequent auth state changes (login, logout, etc).
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      setSession(newSession as AuthSession | null);
       
-      if (session?.user) {
+      if (newSession?.user) {
         const { data: userProfile, error } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', session.user.id)
+          .eq('id', newSession.user.id)
           .single();
 
         if (error && error.code !== 'PGRST116') {
@@ -114,16 +111,44 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } else {
         setProfile(null);
       }
-      // The initial loading is already handled, no need to touch authLoading here.
     });
 
     return () => {
-      authListener.subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, [isLocalMode, addToast]);
 
 
-  const signUp = async ({ username, password, nickname }: { username: string; password: string; nickname: string; }) => {
+  const checkUsernameAvailability = useCallback(async (username: string) => {
+    if (!isLocalMode) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('username', username)
+        .single();
+  
+      if (error && error.code !== 'PGRST116') {
+        return { available: false, message: `오류가 발생했습니다: ${error.message}` };
+      }
+      if (data) {
+        return { available: false, message: '이미 사용 중인 아이디입니다.' };
+      }
+      return { available: true, message: '사용 가능한 아이디입니다.' };
+    }
+
+    try {
+      const mockUsers: Profile[] = JSON.parse(localStorage.getItem(MOCK_USERS_KEY) || '[]');
+      const userExists = mockUsers.some(user => user.username.toLowerCase() === username.toLowerCase());
+      if (userExists) {
+        return { available: false, message: '이미 사용 중인 아이디입니다.' };
+      }
+      return { available: true, message: '사용 가능한 아이디입니다.' };
+    } catch (e) {
+      return { available: false, message: '로컬 저장소 오류' };
+    }
+  }, [isLocalMode]);
+
+  const signUp = useCallback(async ({ username, password, nickname }: { username: string; password: string; nickname: string; }) => {
     if (!isLocalMode) {
       const { available } = await checkUsernameAvailability(username);
       if (!available) {
@@ -144,7 +169,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (error) return { user: null, session: null, error };
 
-      // Handle case where email confirmation is required by mistake.
       if (data.user && !data.session) {
         return { 
             user: data.user, 
@@ -156,7 +180,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return { user: data.user, session: data.session, error };
     }
 
-    // --- MOCK SIGN UP ---
     try {
       const { available } = await checkUsernameAvailability(username);
       if (!available) {
@@ -181,7 +204,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         created_at: new Date().toISOString(),
       };
       
-      // Also create and set a session immediately for local mode
       const mockSession: AuthSession = {
         access_token: `mock-access-${Date.now()}`,
         token_type: 'bearer',
@@ -192,45 +214,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       };
       localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify(mockSession));
       
+      // Manually update state for mock mode
+      setSession(mockSession);
+      setProfile(newUser);
+      
       return { user: mockUser, session: mockSession, error: null };
-
     } catch (e: any) {
       return { user: null, session: null, error: new AuthError(e.message || 'An unknown error occurred') };
     }
-  };
+  }, [isLocalMode, checkUsernameAvailability]);
   
-  const checkUsernameAvailability = async (username: string) => {
-    if (!isLocalMode) {
-      // Supabase logic
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('username', username)
-        .single();
-  
-      if (error && error.code !== 'PGRST116') {
-        return { available: false, message: `오류가 발생했습니다: ${error.message}` };
-      }
-      if (data) {
-        return { available: false, message: '이미 사용 중인 아이디입니다.' };
-      }
-      return { available: true, message: '사용 가능한 아이디입니다.' };
-    }
-
-    // --- MOCK CHECK ---
-    try {
-      const mockUsers: Profile[] = JSON.parse(localStorage.getItem(MOCK_USERS_KEY) || '[]');
-      const userExists = mockUsers.some(user => user.username.toLowerCase() === username.toLowerCase());
-      if (userExists) {
-        return { available: false, message: '이미 사용 중인 아이디입니다.' };
-      }
-      return { available: true, message: '사용 가능한 아이디입니다.' };
-    } catch (e) {
-      return { available: false, message: '로컬 저장소 오류' };
-    }
-  };
-
-  const signIn = async ({ username, password }: { username: string; password: string; }) => {
+  const signIn = useCallback(async ({ username, password }: { username: string; password: string; }) => {
     if (!isLocalMode) {
       const email = `user.${username.toLowerCase()}@example.com`;
       const { error } = await supabase.auth.signInWithPassword({
@@ -240,7 +234,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return { error };
     }
 
-    // --- MOCK SIGN IN ---
     try {
       const mockUsers: UserProfile[] = JSON.parse(localStorage.getItem(MOCK_USERS_KEY) || '[]');
       const foundUser = mockUsers.find(user => user.username.toLowerCase() === username.toLowerCase());
@@ -249,7 +242,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return { error: new AuthError('Invalid login credentials') };
       }
 
-      // Create a mock session
       const mockSession: AuthSession = {
         access_token: `mock-access-${Date.now()}`,
         token_type: 'bearer',
@@ -269,25 +261,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setSession(mockSession);
       setProfile(foundUser);
       return { error: null };
-
     } catch (e: any) {
       return { error: new AuthError(e.message || 'An unknown error occurred') };
     }
-  };
+  }, [isLocalMode]);
   
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     if (!isLocalMode) {
-      // Supabase logic
       const { error } = await supabase.auth.signOut();
       if (!error) {
-        // Manually clear session and profile for immediate UI update
         setSession(null);
         setProfile(null);
       }
       return { error };
     }
     
-    // --- MOCK SIGN OUT ---
     try {
       localStorage.removeItem(MOCK_SESSION_KEY);
       setSession(null);
@@ -296,7 +284,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (e: any) {
       return { error: new AuthError(e.message || 'An unknown error occurred') };
     }
-  };
+  }, [isLocalMode]);
 
 
   const value = {
