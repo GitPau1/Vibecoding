@@ -61,46 +61,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     setAuthLoading(true);
 
-    // This function explicitly fetches the session on page load/refresh.
-    // It's the "source of truth" for the initial auth state.
-    const fetchInitialSession = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error("Error fetching initial session:", error.message);
-      }
-
-      setSession(session);
-
-      if (session) {
-        const { data: userProfile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-
-        if (profileError && profileError.code !== 'PGRST116') {
-          console.error("Error fetching profile on initial load:", profileError.message);
-          setProfile(null);
-        } else {
-          setProfile(userProfile);
-        }
-      }
-      // Crucially, we set loading to false only after the initial check is complete.
-      setAuthLoading(false);
-    };
-
-    fetchInitialSession();
-
-    // This listener handles auth changes that happen *after* initial load,
-    // like user logging in or out in another tab.
+    // onAuthStateChange is the single source of truth.
+    // It fires once on initial load with the current session (or null),
+    // and then again whenever the auth state changes.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setSession(session);
         if (session) {
             const { data: userProfile, error } = await supabase
                 .from('profiles').select('*').eq('id', session.user.id).single();
-            if (error && error.code !== 'PGRST116') {
+            if (error && error.code !== 'PGRST116') { // 'PGRST116' means no rows found
+                console.error("Error fetching profile:", error.message);
                 setProfile(null);
             } else {
                 setProfile(userProfile);
@@ -108,6 +79,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         } else {
             setProfile(null);
         }
+        // This is crucial: set loading to false only after the first auth event has been handled.
+        setAuthLoading(false);
       }
     );
 

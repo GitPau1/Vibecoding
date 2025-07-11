@@ -116,7 +116,7 @@ export type Database = {
       }
       vote_options: {
         Row: {
-          comments: any[] | null
+          comments: any
           created_at: string
           id: string
           label: string
@@ -125,7 +125,7 @@ export type Database = {
           votes: number
         }
         Insert: {
-          comments?: any[] | null
+          comments?: any
           created_at?: string
           id?: string
           label: string
@@ -134,7 +134,7 @@ export type Database = {
           votes?: number
         }
         Update: {
-          comments?: any[] | null
+          comments?: any
           created_at?: string
           id?: string
           label?: string
@@ -150,7 +150,7 @@ export type Database = {
           end_date: string
           id: string
           image_url: string | null
-          players: any[] | null
+          players: any
           title: string
           type: string
           user_id: string
@@ -161,7 +161,7 @@ export type Database = {
           end_date: string
           id?: string
           image_url?: string | null
-          players?: any[] | null
+          players?: any
           title: string
           type: string
           user_id: string
@@ -172,7 +172,7 @@ export type Database = {
           end_date?: string
           id?: string
           image_url?: string | null
-          players?: any[] | null
+          players?: any
           title?: string
           type?: string
           user_id?: string
@@ -211,13 +211,13 @@ export type Database = {
           article_id_to_inc: string
         }
         Returns: undefined
-      }
+      },
       increment_article_view: {
         Args: {
           article_id_to_inc: string
         }
         Returns: undefined
-      }
+      },
       increment_vote: {
         Args: {
           option_id_to_inc: string
