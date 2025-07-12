@@ -73,7 +73,7 @@ const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating, squ
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
-  const [endDate, setEndDate] = useState(new Date().toISOString().split("T")[0]); // Default to today
+  const [endDate, setEndDate] = useState('');
   const { addToast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   
@@ -241,9 +241,16 @@ const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating, squ
             </div>
 
             <div>
-                <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">경기 날짜</label>
-                <Input id="endDate" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} required />
-                <p className="text-xs text-gray-500 mt-1">평점은 생성 즉시 시작됩니다. 경기 날짜를 선택해주세요.</p>
+              <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">평점 마감 시간</label>
+              <Input 
+                  id="endDate" 
+                  type="datetime-local" 
+                  value={endDate} 
+                  onChange={e => setEndDate(e.target.value)} 
+                  required 
+                  min={new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16)}
+              />
+              <p className="text-xs text-gray-500 mt-1">이 시간이 지나면 평점을 제출할 수 없습니다.</p>
             </div>
             
             <div className="space-y-6">

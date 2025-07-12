@@ -19,12 +19,12 @@ import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabaseClient';
 
 interface VotePageProps {
-  votes?: Vote[];
-  ratings?: Vote[];
+  allItems: Vote[];
   onVote: (voteId: string, optionId: string) => void;
   onRatePlayers: (voteId: string, ratings: { [playerId: number]: { rating: number; comment: string | null; }; }) => void;
   onUpdateScoreVote: (voteId: string, score: string) => void;
   onEnterResult: (voteId: string, finalScore: string) => void;
+  onRequestLogin: () => void;
 }
 
 const EnterResultForm: React.FC<{ vote: Vote, onEnterResult: (voteId: string, finalScore: string) => void }> = ({ vote, onEnterResult }) => {
@@ -62,7 +62,7 @@ const EnterResultForm: React.FC<{ vote: Vote, onEnterResult: (voteId: string, fi
     );
 };
 
-const VotePage: React.FC<VotePageProps> = ({ votes, ratings, onVote, onRatePlayers, onUpdateScoreVote, onEnterResult }) => {
+const VotePage: React.FC<VotePageProps> = ({ allItems, onVote, onRatePlayers, onUpdateScoreVote, onEnterResult, onRequestLogin }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { session } = useAuth();
@@ -70,15 +70,15 @@ const VotePage: React.FC<VotePageProps> = ({ votes, ratings, onVote, onRatePlaye
   
   const [winners, setWinners] = useState<Pick<Profile, 'nickname'>[]>([]);
   const [loadingWinners, setLoadingWinners] = useState(false);
+  const [viewingResults, setViewingResults] = useState(false);
 
-  const dataSet = votes || ratings;
-  const vote = dataSet?.find(v => v.id === id);
+  const vote = allItems.find(v => v.id === id);
 
   useEffect(() => {
-    if (!vote && dataSet && dataSet.length > 0) {
+    if (!vote && allItems && allItems.length > 0) {
       navigate('/', { replace: true });
     }
-  }, [vote, dataSet, navigate]);
+  }, [vote, allItems, navigate]);
   
   useEffect(() => {
     const fetchWinners = async () => {
@@ -111,10 +111,8 @@ const VotePage: React.FC<VotePageProps> = ({ votes, ratings, onVote, onRatePlaye
   }
 
   const isCreator = !!session && session.user.id === vote.user_id;
-  const hasVoted = vote.userVote !== undefined || vote.userRatings !== undefined;
   const isExpired = new Date(vote.endDate) < new Date();
   
-  const showResults = vote.type === VoteKind.RATING ? hasVoted : (hasVoted || isExpired || !!vote.finalScore);
   const canEnterResult = vote.type === VoteKind.MATCH && isCreator && !vote.finalScore && !isExpired;
 
   const totalVotes = vote.options.reduce((sum, option) => sum + option.votes, 0);
@@ -128,32 +126,47 @@ const VotePage: React.FC<VotePageProps> = ({ votes, ratings, onVote, onRatePlaye
     }
   }
 
-  const renderVoteComponent = () => {
+  const MainContent = () => {
+    if (vote.type === VoteKind.RATING) {
+        const hasVoted = vote.userRatings !== undefined;
+        const showResultsView = viewingResults || (session && (hasVoted || isExpired));
+
+        if (showResultsView) {
+            return <PlayerRatingResults vote={vote} isExpired={isExpired} />;
+        }
+        
+        return <PlayerRatingPage 
+                vote={vote}
+                onRate={onRatePlayers}
+                isGuest={!session}
+                onRequestLogin={onRequestLogin}
+                onShowResults={() => setViewingResults(true)}
+               />;
+    }
+
+    // For other vote types (MATCH, PLAYER, TOPIC)
+    const hasVoted = vote.userVote !== undefined;
+    const showResults = hasVoted || isExpired || !!vote.finalScore;
+
+    if (showResults) {
+        return <VoteResults vote={vote} isExpired={isExpired || !!vote.finalScore} winners={winners} loadingWinners={loadingWinners} />;
+    }
+
     switch (vote.type) {
-      case VoteKind.MATCH:
-        return <ScoreVote vote={vote} onVote={(scoreString) => onUpdateScoreVote(vote.id, scoreString)} />;
-      case VoteKind.PLAYER:
-        return <PlayerVote vote={vote} onVote={(optionId) => onVote(vote.id, optionId)} />;
-      case VoteKind.TOPIC:
-        return <TopicVote vote={vote} onVote={(optionId) => onVote(vote.id, optionId)} />;
-      case VoteKind.RATING:
-        return <PlayerRatingPage vote={vote} onRate={onRatePlayers} />;
-      default:
-        return <p>Unknown vote type</p>;
+        case VoteKind.MATCH:
+            return <ScoreVote vote={vote} onVote={(scoreString) => onUpdateScoreVote(vote.id, scoreString)} />;
+        case VoteKind.PLAYER:
+            return <PlayerVote vote={vote} onVote={(optionId) => onVote(vote.id, optionId)} />;
+        case VoteKind.TOPIC:
+            return <TopicVote vote={vote} onVote={(optionId) => onVote(vote.id, optionId)} />;
+        default:
+            return <p>Unknown vote type</p>;
     }
   };
   
-  const renderResultsComponent = () => {
-    if (vote.type === VoteKind.RATING) {
-        return <PlayerRatingResults vote={vote} isExpired={isExpired} />;
-    }
-    return <VoteResults vote={vote} isExpired={isExpired || !!vote.finalScore} winners={winners} loadingWinners={loadingWinners} />;
-  }
-
   const renderWinnerLabel = () => {
       if (!winnerOption) return null;
-      if (vote.type === VoteKind.MATCH && vote.finalScore) return null; // Final result handled in VoteResults now
-      if (vote.type === VoteKind.MATCH) {
+      if (vote.type === VoteKind.MATCH) { // This will now only show for non-finalized results
           const [scoreA, scoreB] = winnerOption.label.split('-');
           return (
             <div className="flex items-center justify-center gap-4">
@@ -184,7 +197,7 @@ const VotePage: React.FC<VotePageProps> = ({ votes, ratings, onVote, onRatePlaye
             <div className="text-center">
               <div className="flex justify-center items-center text-amber-600 mb-2">
                 <TrophyIcon className="w-6 h-6 mr-2" />
-                <p className="font-semibold text-base">투표 최종 1위</p>
+                <p className="font-semibold text-base">{vote.type === VoteKind.MATCH ? "현재 1위 예측" : "투표 최종 1위"}</p>
               </div>
               {renderWinnerLabel()}
             </div>
@@ -198,7 +211,7 @@ const VotePage: React.FC<VotePageProps> = ({ votes, ratings, onVote, onRatePlaye
         )}
 
         <div className="bg-gray-50 px-6 py-8 md:px-8 border-t border-gray-100">
-          {showResults ? renderResultsComponent() : renderVoteComponent()}
+          <MainContent />
         </div>
       </Card>
     </div>

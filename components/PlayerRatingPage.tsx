@@ -62,9 +62,12 @@ const PlayerRatingInput: React.FC<PlayerRatingInputProps> = React.memo(({ player
 interface PlayerRatingPageProps {
     vote: Vote;
     onRate: (voteId: string, ratings: { [playerId: number]: { rating: number; comment: string | null; }; }) => void;
+    isGuest?: boolean;
+    onRequestLogin?: () => void;
+    onShowResults?: () => void;
 }
 
-const PlayerRatingPage: React.FC<PlayerRatingPageProps> = ({ vote, onRate }) => {
+const PlayerRatingPage: React.FC<PlayerRatingPageProps> = ({ vote, onRate, isGuest, onRequestLogin, onShowResults }) => {
     const [ratings, setRatings] = useState<{ [key: number]: { rating: number; comment: string | null } }>({});
     const { addToast } = useToast();
 
@@ -130,9 +133,17 @@ const PlayerRatingPage: React.FC<PlayerRatingPageProps> = ({ vote, onRate }) => 
                     );
                 })}
             </div>
-            <div className="mt-8 text-right">
-                <Button onClick={handleSubmit} size="lg">평점 제출하기</Button>
-            </div>
+            
+            {isGuest ? (
+                <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Button onClick={onShowResults} variant="outline" size="lg">결과 보기</Button>
+                    <Button onClick={onRequestLogin} size="lg">평점 제출하기</Button>
+                </div>
+            ) : (
+                <div className="mt-8 text-right">
+                    <Button onClick={handleSubmit} size="lg">평점 제출하기</Button>
+                </div>
+            )}
         </div>
     );
 };

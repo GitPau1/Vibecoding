@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { Vote, VoteKind, Player, Article, XPost, SquadPlayer, PlayerPosition, ArticleUpdateData, XPostUpdateData, Profile } from './types';
+import { Vote, VoteKind, Player, Article, XPost, SquadPlayer, PlayerPosition, ArticleUpdateData, XPostUpdateData, Profile, UserVote } from './types';
 import Header from './components/Header';
 import HomePage from './components/HomePage';
 import VotePage from './components/VotePage';
@@ -92,47 +92,60 @@ const AppContent: React.FC = () => {
         .order('created_at', { ascending: false });
       if (voteError) throw voteError;
       
-      let userVoteMap: { [voteId: string]: string } = JSON.parse(localStorage.getItem('userVotes') || '{}');
+      let userVotesFromDb: UserVote[] = [];
       if (session) {
-          const { data: userDbVotes, error: userVoteError } = await supabase!
+          const { data, error } = await supabase!
               .from('user_votes')
               .select('vote_id, vote_value')
               .eq('user_id', session.user.id);
-          
-          if (userVoteError) throw userVoteError;
-          
-          if(userDbVotes) {
-              userDbVotes.forEach(uv => {
-                  userVoteMap[uv.vote_id] = uv.vote_value;
-              });
-          }
+          if (error) throw error;
+          if (data) userVotesFromDb = data;
       }
+      
+      const userVoteMap: { [voteId: string]: string } = {};
+      userVotesFromDb.forEach(uv => {
+          userVoteMap[uv.vote_id] = uv.vote_value;
+      });
 
-      const userRatings = JSON.parse(localStorage.getItem('userRatings') || '{}');
-
-      const allVotes: Vote[] = (voteData || []).map((v) => ({
-        id: v.id,
-        title: v.title,
-        description: v.description,
-        type: v.type as VoteKind,
-        endDate: v.end_date,
-        createdAt: v.created_at,
-        imageUrl: v.image_url,
-        players: v.players as Player[] | null,
-        user_id: v.user_id,
-        teamA: v.team_a,
-        teamB: v.team_b,
-        finalScore: v.final_score || undefined,
-        options: v.options.map((o) => ({
-          id: o.id,
-          label: o.label,
-          votes: o.votes,
-          rating_count: o.rating_count,
-          comments: o.comments as string[] | undefined,
-        })),
-        userVote: userVoteMap[v.id],
-        userRatings: userRatings[v.id],
-      }));
+      const allVotes: Vote[] = (voteData || []).map((v) => {
+        const voteValue = userVoteMap[v.id];
+        let userVote: string | undefined;
+        let userRatings: { [key: number]: { rating: number; comment: string | null } } | undefined;
+        
+        if (voteValue) {
+          if (v.type as VoteKind === VoteKind.RATING) {
+            try {
+              userRatings = JSON.parse(voteValue);
+            } catch (e) { console.error(`Failed to parse user ratings for vote ${v.id}:`, e); }
+          } else {
+            userVote = voteValue;
+          }
+        }
+        
+        return {
+            id: v.id,
+            title: v.title,
+            description: v.description,
+            type: v.type as VoteKind,
+            endDate: v.end_date,
+            createdAt: v.created_at,
+            imageUrl: v.image_url,
+            players: v.players as Player[] | null,
+            user_id: v.user_id,
+            teamA: v.team_a,
+            teamB: v.team_b,
+            finalScore: v.final_score || undefined,
+            options: v.options.map((o) => ({
+              id: o.id,
+              label: o.label,
+              votes: o.votes,
+              rating_count: o.rating_count,
+              comments: o.comments as string[] | undefined,
+            })),
+            userVote: userVote,
+            userRatings: userRatings,
+        };
+      });
       setVotes(allVotes.filter(v => v.type !== VoteKind.RATING));
       setRatings(allVotes.filter(v => v.type === VoteKind.RATING));
 
@@ -326,47 +339,24 @@ const AppContent: React.FC = () => {
         setIsAuthModalOpen(true);
         return;
     }
-    const updateLocalState = () => {
-        setRatings(prevRatings =>
-            prevRatings.map(rating => {
-                if (rating.id === ratingId) {
-                    const newOptions = rating.options.map(option => {
-                        const player = rating.players?.find(p => p.name === option.label);
-                        if (!player) return option;
-
-                        const playerRatingData = playerRatings[player.id];
-                        if (playerRatingData) {
-                            return {
-                                ...option,
-                                votes: option.votes + playerRatingData.rating,
-                                ratingCount: (option.ratingCount || 0) + 1,
-                                comments: playerRatingData.comment
-                                    ? [...(option.comments || []), playerRatingData.comment]
-                                    : (option.comments || []),
-                            };
-                        }
-                        return option;
-                    });
-                    const userRatings = JSON.parse(localStorage.getItem('userRatings') || '{}');
-                    userRatings[ratingId] = playerRatings;
-                    localStorage.setItem('userRatings', JSON.stringify(userRatings));
-                    return { ...rating, options: newOptions, userRatings: playerRatings };
-                }
-                return rating;
-            })
-        );
-        addToast('평점이 제출되었습니다. 감사합니다!', 'success');
-    };
 
     if (isLocalMode) {
-      updateLocalState();
+      // For local testing, we still use localStorage to simulate user-specific votes
+      const userRatings = JSON.parse(localStorage.getItem('userRatings') || '{}');
+      userRatings[ratingId] = playerRatings;
+      localStorage.setItem('userRatings', JSON.stringify(userRatings));
+      addToast('평점이 제출되었습니다. (로컬)', 'success');
+      // Re-trigger a "fetch" to update the UI from localStorage
+      const mockUserRatings = JSON.parse(localStorage.getItem('userRatings') || '{}');
+      setRatings(prev => prev.map(r => ({ ...r, userRatings: mockUserRatings[r.id] })));
       return;
     }
     
     try {
         const rating = ratings.find(r => r.id === ratingId);
-        if (!rating) throw new Error("Rating not found");
+        if (!rating) throw new Error("해당 평점을 찾을 수 없습니다.");
 
+        // 1. Prepare payload for aggregation RPC
         const ratingsPayload = Object.entries(playerRatings).map(([playerId, data]) => {
             const player = rating.players?.find(p => p.id === Number(playerId));
             if (!player) return null;
@@ -380,13 +370,22 @@ const AppContent: React.FC = () => {
             };
         }).filter(Boolean);
 
+        // 2. Call aggregation RPC
         if (ratingsPayload.length > 0) {
-            const { error } = await supabase!.rpc('submit_player_ratings', { ratings: ratingsPayload });
-            if (error) throw error;
+            const { error: rpcError } = await supabase!.rpc('submit_player_ratings', { ratings: ratingsPayload });
+            if (rpcError) throw rpcError;
         }
 
-        updateLocalState();
-        await fetchAllData();
+        // 3. Log the user's individual vote to the user_votes table
+        const { error: voteLogError } = await supabase!.from('user_votes').upsert({
+            vote_id: ratingId,
+            user_id: session.user.id,
+            vote_value: JSON.stringify(playerRatings),
+        });
+        if (voteLogError) throw voteLogError;
+
+        addToast('평점이 제출되었습니다. 감사합니다!', 'success');
+        await fetchAllData(); // Refresh all data from DB to show new aggregate results
     } catch (error: any) {
         addToast(`평점 제출 실패: ${error.message}`, 'error');
     }
@@ -923,14 +922,16 @@ const AppContent: React.FC = () => {
     }
   };
 
+  const allItems = [...votes, ...ratings];
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
       <main className="container mx-auto max-w-7xl p-4 sm:p-6 lg:p-8 flex-grow">
         <Routes>
           <Route path="/" element={<HomePage votes={votes} ratings={ratings} articles={articles} xPosts={xPosts} />} />
-          <Route path="/vote/:id" element={<VotePage votes={[...votes, ...ratings]} onVote={handleVote} onRatePlayers={handlePlayerRatingSubmit} onUpdateScoreVote={handleCastOrUpdateScoreVote} onEnterResult={handleEnterMatchResult} />} />
-          <Route path="/rating/:id" element={<VotePage ratings={ratings} onVote={handleVote} onRatePlayers={handlePlayerRatingSubmit} onUpdateScoreVote={handleCastOrUpdateScoreVote} onEnterResult={handleEnterMatchResult} />} />
+          <Route path="/vote/:id" element={<VotePage allItems={allItems} onVote={handleVote} onRatePlayers={handlePlayerRatingSubmit} onUpdateScoreVote={handleCastOrUpdateScoreVote} onEnterResult={handleEnterMatchResult} onRequestLogin={() => setIsAuthModalOpen(true)} />} />
+          <Route path="/rating/:id" element={<VotePage allItems={allItems} onVote={handleVote} onRatePlayers={handlePlayerRatingSubmit} onUpdateScoreVote={handleCastOrUpdateScoreVote} onEnterResult={handleEnterMatchResult} onRequestLogin={() => setIsAuthModalOpen(true)} />} />
           <Route path="/article/:id" element={<ArticlePage articles={articles} onRecommend={handleRecommendArticle} onView={handleViewArticle} onDelete={handleDeleteArticle} />} />
           <Route path="/x-post/:id" element={<XPostPage xPosts={xPosts} onDelete={handleDeleteXPost} />} />
           <Route path="/report-bug" element={<BugReportPage onSubmit={handleCreateBugReport} />} />
