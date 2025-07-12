@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Vote, Player, Article, XPost, SquadPlayer, PlayerPosition, ArticleUpdateData, XPostUpdateData, Profile, UserVote, PlayerRating, PlayerRatingSubmission, VoteKind } from './types';
@@ -25,6 +26,7 @@ import LoginPage from './components/LoginPage';
 import SignUpPage from './components/SignUpPage';
 import AuthModal from './components/AuthModal';
 import PlayerRatingDetailPage from './components/PlayerRatingDetailPage';
+import { Analytics } from '@vercel/analytics/react';
 
 
 export interface VoteCreationData extends Pick<Vote, 'title' | 'description' | 'type' | 'endDate' | 'imageUrl' | 'teamA' | 'teamB'> {
@@ -930,6 +932,7 @@ const App: React.FC = () => {
     <ToastProvider>
       <AuthProvider>
         <AppContent />
+        <Analytics />
       </AuthProvider>
     </ToastProvider>
   );
