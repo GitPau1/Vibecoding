@@ -116,7 +116,7 @@ export type Database = {
       }
       vote_options: {
         Row: {
-          comments: any
+          comments: string[] | null
           created_at: string
           id: string
           label: string
@@ -125,7 +125,7 @@ export type Database = {
           votes: number
         }
         Insert: {
-          comments?: any
+          comments?: string[] | null
           created_at?: string
           id?: string
           label: string
@@ -134,7 +134,7 @@ export type Database = {
           votes?: number
         }
         Update: {
-          comments?: any
+          comments?: string[] | null
           created_at?: string
           id?: string
           label?: string
@@ -150,7 +150,7 @@ export type Database = {
           end_date: string
           id: string
           image_url: string | null
-          players: any
+          players: Player[] | null
           team_a: string | null
           team_b: string | null
           title: string
@@ -163,7 +163,7 @@ export type Database = {
           end_date: string
           id?: string
           image_url?: string | null
-          players?: any
+          players?: Player[] | null
           team_a?: string | null
           team_b?: string | null
           title: string
@@ -176,7 +176,7 @@ export type Database = {
           end_date?: string
           id?: string
           image_url?: string | null
-          players?: any
+          players?: Player[] | null
           team_a?: string | null
           team_b?: string | null
           title?: string
@@ -287,7 +287,7 @@ if (!supabase) {
 -- Note: Enable RLS (Row Level Security) for all tables and define policies.
 
 -- PROFILES TABLE (for user data)
-CREATE TABLE profiles (
+CREATE TABLE public.profiles (
   id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL PRIMARY KEY,
   updated_at timestamp with time zone,
   username text UNIQUE NOT NULL,
@@ -296,14 +296,14 @@ CREATE TABLE profiles (
   CONSTRAINT username_length CHECK (char_length(username) >= 3 AND char_length(username) <= 20),
   CONSTRAINT nickname_length CHECK (char_length(nickname) >= 2 AND char_length(nickname) <= 20)
 );
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Public profiles are viewable by everyone." ON profiles FOR SELECT USING (true);
-CREATE POLICY "Users can insert their own profile." ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
-CREATE POLICY "Users can update their own profile." ON profiles FOR UPDATE USING (auth.uid() = id);
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public profiles are viewable by everyone." ON public.profiles FOR SELECT USING (true);
+CREATE POLICY "Users can insert their own profile." ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can update their own profile." ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
 
 -- ARTICLES TABLE
-CREATE TABLE articles (
+CREATE TABLE public.articles (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   title text NOT NULL,
@@ -311,15 +311,17 @@ CREATE TABLE articles (
   image_url text,
   recommendations integer DEFAULT 0 NOT NULL,
   views integer DEFAULT 0 NOT NULL,
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE
+  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE
 );
-ALTER TABLE articles ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow public read access on articles" ON articles FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated users to insert articles" ON articles FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+ALTER TABLE public.articles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read access on articles" ON public.articles FOR SELECT USING (true);
+CREATE POLICY "Allow authenticated users to insert articles" ON public.articles FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Allow authors to update their own articles" ON public.articles FOR UPDATE TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Allow authors to delete their own articles" ON public.articles FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 
 -- VOTES & RATINGS TABLE
-CREATE TABLE votes (
+CREATE TABLE public.votes (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   title text NOT NULL,
@@ -330,15 +332,15 @@ CREATE TABLE votes (
   team_a text,
   team_b text,
   players jsonb, -- Used for PLAYER and RATING types to store player info
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE
+  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE
 );
-ALTER TABLE votes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow public read access on votes" ON votes FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated users to insert votes" ON votes FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+ALTER TABLE public.votes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read access on votes" ON public.votes FOR SELECT USING (true);
+CREATE POLICY "Allow authenticated users to insert votes" ON public.votes FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 
 
 -- VOTE OPTIONS TABLE
-CREATE TABLE vote_options (
+CREATE TABLE public.vote_options (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   vote_id uuid REFERENCES votes(id) ON DELETE CASCADE NOT NULL,
@@ -347,27 +349,29 @@ CREATE TABLE vote_options (
   rating_count integer DEFAULT 0, -- For RATING type
   comments jsonb DEFAULT '[]'::jsonb -- For RATING type
 );
-ALTER TABLE vote_options ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow public read access on vote_options" ON vote_options FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated users to insert vote options" ON vote_options FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "Allow authenticated users to update vote options" ON vote_options FOR UPDATE TO authenticated USING (true); -- For rating submissions
+ALTER TABLE public.vote_options ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read access on vote_options" ON public.vote_options FOR SELECT USING (true);
+CREATE POLICY "Allow authenticated users to insert vote options" ON public.vote_options FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated users to update vote options" ON public.vote_options FOR UPDATE TO authenticated USING (true); -- For rating submissions
 
 
 -- X_POSTS TABLE
-CREATE TABLE x_posts (
+CREATE TABLE public.x_posts (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   description text NOT NULL,
   post_url text NOT NULL,
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE
+  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE
 );
-ALTER TABLE x_posts ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow public read access on x_posts" ON x_posts FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated users to insert x_posts" ON x_posts FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+ALTER TABLE public.x_posts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read access on x_posts" ON public.x_posts FOR SELECT USING (true);
+CREATE POLICY "Allow authenticated users to insert x_posts" ON public.x_posts FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Allow authors to update their own x_posts" ON public.x_posts FOR UPDATE TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Allow authors to delete their own x_posts" ON public.x_posts FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 
 -- BUG REPORTS TABLE
-CREATE TABLE bug_reports (
+CREATE TABLE public.bug_reports (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   title text NOT NULL,
@@ -375,13 +379,13 @@ CREATE TABLE bug_reports (
   url text NOT NULL,
   screenshot_url text
 );
-ALTER TABLE bug_reports ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow anon insert on bug_reports" ON bug_reports FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow authenticated read on bug_reports" ON bug_reports FOR SELECT TO authenticated USING (true); -- Or to a specific admin role
+ALTER TABLE public.bug_reports ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow anon insert on bug_reports" ON public.bug_reports FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow authenticated read on bug_reports" ON public.bug_reports FOR SELECT TO authenticated USING (true); -- Or to a specific admin role
 
 
 -- SQUAD PLAYERS TABLE
-CREATE TABLE squad_players (
+CREATE TABLE public.squad_players (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   name text NOT NULL,
@@ -391,9 +395,9 @@ CREATE TABLE squad_players (
   -- This table does not need user_id if we consider the squad to be global for the app
   -- If squads were user-specific, a user_id column would be needed here too.
 );
-ALTER TABLE squad_players ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow public read access on squad_players" ON squad_players FOR SELECT USING (true);
-CREATE POLICY "Allow authenticated users to manage squad_players" ON squad_players FOR ALL TO authenticated USING (true);
+ALTER TABLE public.squad_players ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read access on squad_players" ON public.squad_players FOR SELECT USING (true);
+CREATE POLICY "Allow authenticated users to manage squad_players" ON public.squad_players FOR ALL TO authenticated USING (true);
 
 
 -- 2. Create RPC functions
