@@ -8,9 +8,10 @@ import { ImageWithFallback } from './ui/ImageWithFallback';
 
 interface PlayerRatingResultsProps {
     vote: Vote;
+    isExpired: boolean;
 }
 
-const PlayerRatingResults: React.FC<PlayerRatingResultsProps> = ({ vote }) => {
+const PlayerRatingResults: React.FC<PlayerRatingResultsProps> = ({ vote, isExpired }) => {
     const { starters, substitutes } = useMemo(() => {
         const starters: Player[] = [];
         const substitutes: Player[] = [];
@@ -44,6 +45,17 @@ const PlayerRatingResults: React.FC<PlayerRatingResultsProps> = ({ vote }) => {
         return Math.max(0, ...Object.values(playerRatings).map(r => r.avg));
     }, [playerRatings]);
     
+    const manOfTheMatch = useMemo(() => {
+        if (!isExpired || highestAvgRating <= 0) return null;
+    
+        const momPlayers = vote.players?.filter(p => {
+            const ratingInfo = playerRatings[p.id];
+            return ratingInfo && ratingInfo.avg.toFixed(2) === highestAvgRating.toFixed(2);
+        }) || [];
+    
+        return momPlayers; // Return array of players
+    }, [isExpired, highestAvgRating, playerRatings, vote.players]);
+    
     const groupedComments = useMemo(() => {
         if (!vote.players) return [];
 
@@ -72,28 +84,35 @@ const PlayerRatingResults: React.FC<PlayerRatingResultsProps> = ({ vote }) => {
 
     const PlayerResultRow: React.FC<{ player: Player }> = ({ player }) => {
         const ratingInfo = playerRatings[player.id];
-        const userRating = vote.userRatings?.[player.id]?.rating;
+        const userRatingInfo = vote.userRatings?.[player.id];
         const isHighest = ratingInfo && ratingInfo.avg > 0 && ratingInfo.avg.toFixed(2) === highestAvgRating.toFixed(2);
 
-
         return (
-             <Card className={`p-4 flex flex-col sm:flex-row items-center gap-4 transition-all ${isHighest ? 'bg-amber-50 border-amber-300' : ''}`}>
-                <ImageWithFallback src={player.photoUrl} alt={player.name} className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-md" />
-                <div className="flex-grow text-center sm:text-left">
-                    <div className="flex items-center gap-2 justify-center sm:justify-start">
-                        {isHighest && <TrophyIcon className="w-5 h-5 text-amber-500" />}
-                        <p className="font-bold text-lg text-gray-900">{player.name}</p>
+             <Card className={`p-4 transition-all ${isExpired && isHighest ? 'bg-amber-50 border-amber-300' : 'bg-white'}`}>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                        {isExpired && isHighest && <TrophyIcon className="w-5 h-5 text-amber-500 flex-shrink-0" />}
+                        <ImageWithFallback src={player.photoUrl} alt={player.name} className="w-12 h-12 rounded-full object-cover flex-shrink-0" />
+                        <div className="flex-grow overflow-hidden">
+                            <p className="font-bold text-gray-900 truncate">{player.name}</p>
+                            <p className="text-sm text-gray-500 truncate">{player.team}</p>
+                        </div>
                     </div>
-                    <p className="text-sm text-gray-500">{player.team}</p>
+                    <div className="text-right flex-shrink-0 pl-2">
+                        <p className="text-xl font-bold text-indigo-600">{ratingInfo ? ratingInfo.avg.toFixed(2) : 'N/A'}</p>
+                        <p className="text-xs text-gray-500">평균</p>
+                    </div>
                 </div>
-                <div className="text-center">
-                    <p className="text-2xl font-bold text-gray-800">{ratingInfo ? ratingInfo.avg.toFixed(2) : 'N/A'}</p>
-                    <p className="text-xs text-gray-500">평균 평점</p>
-                </div>
-                {userRating !== undefined && (
-                    <div className="text-center sm:pl-4 sm:ml-4 sm:border-l border-gray-200 mt-2 sm:mt-0 pt-2 sm:pt-0 border-t sm:border-t-0">
-                        <p className="text-2xl font-bold text-[#6366f1]">{userRating.toFixed(1)}</p>
-                        <p className="text-xs text-gray-500">내 평점</p>
+                {userRatingInfo && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                        <div className="flex justify-between items-start">
+                            <p className="text-sm font-semibold text-gray-700">
+                                내 평점: <span className="text-lg font-bold text-gray-900">{userRatingInfo.rating.toFixed(1)}</span>
+                            </p>
+                            {userRatingInfo.comment && (
+                                <p className="text-sm text-gray-600 text-right pl-4 flex-1 italic">“{userRatingInfo.comment}”</p>
+                            )}
+                        </div>
                     </div>
                 )}
             </Card>
@@ -102,6 +121,24 @@ const PlayerRatingResults: React.FC<PlayerRatingResultsProps> = ({ vote }) => {
 
     return (
         <div className="space-y-6">
+             {manOfTheMatch && manOfTheMatch.length > 0 && (
+                <Card className="bg-gradient-to-br from-amber-400 to-orange-500 text-white p-6 mb-6">
+                    <div className="text-center">
+                        <TrophyIcon className="w-10 h-10 mx-auto mb-2 text-white drop-shadow-lg"/>
+                        <h4 className="text-lg font-semibold tracking-widest uppercase">Man of the Match</h4>
+                        <div className="mt-4 flex justify-center items-center gap-4 flex-wrap">
+                            {manOfTheMatch.map(player => (
+                                <div key={player.id} className="flex flex-col items-center">
+                                    <ImageWithFallback src={player.photoUrl} alt={player.name} className="w-20 h-20 rounded-full object-cover border-4 border-white/50 shadow-lg" />
+                                    <p className="mt-2 text-xl font-bold">{player.name}</p>
+                                </div>
+                            ))}
+                        </div>
+                         <p className="mt-2 text-2xl font-bold tracking-tight">Avg. {highestAvgRating.toFixed(2)}</p>
+                    </div>
+                </Card>
+            )}
+
             <div>
                 <h3 className="font-semibold text-lg text-gray-800">선수 평점 결과</h3>
                 <p className="text-sm text-gray-500">총 {totalRaters.toLocaleString()}명이 참여했습니다.</p>

@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Vote } from '../types';
 import { Button } from './ui/Button';
 import { PlusIcon } from './icons/PlusIcon';
@@ -13,6 +14,17 @@ interface ScoreVoteProps {
 const ScoreVote: React.FC<ScoreVoteProps> = ({ vote, onVote }) => {
   const [scoreA, setScoreA] = useState<number>(0);
   const [scoreB, setScoreB] = useState<number>(0);
+
+  useEffect(() => {
+    if (vote.userVote) {
+      const scores = vote.userVote.split('-');
+      if (scores.length === 2) {
+        setScoreA(parseInt(scores[0], 10) || 0);
+        setScoreB(parseInt(scores[1], 10) || 0);
+      }
+    }
+  }, [vote.userVote]);
+
 
   const handleScoreChange = (setter: React.Dispatch<React.SetStateAction<number>>, delta: number) => {
     setter(prev => {
@@ -42,9 +54,9 @@ const ScoreVote: React.FC<ScoreVoteProps> = ({ vote, onVote }) => {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <h3 className="font-semibold text-lg text-center text-gray-800">스코어를 예측해주세요</h3>
-      <div className="flex items-start justify-center gap-4">
+      <div className="flex flex-col sm:flex-row items-center justify-around gap-y-4">
         {/* Team A Stepper */}
-        <div className="flex-1 text-center space-y-3">
+        <div className="w-full sm:w-auto text-center space-y-3">
           <label className="block font-bold text-gray-800 text-lg truncate">{vote.teamA}</label>
           <div className="flex items-center justify-center space-x-3">
             <StepperButton onClick={() => handleScoreChange(setScoreA, -1)} disabled={scoreA <= 0} aria-label={`${vote.teamA} 점수 감소`}>
@@ -59,10 +71,10 @@ const ScoreVote: React.FC<ScoreVoteProps> = ({ vote, onVote }) => {
           </div>
         </div>
         
-        <div className="text-5xl md:text-6xl font-bold text-gray-400 pt-10">:</div>
+        <div className="text-4xl sm:text-5xl font-bold text-gray-400 hidden sm:block sm:pt-10">:</div>
 
         {/* Team B Stepper */}
-        <div className="flex-1 text-center space-y-3">
+        <div className="w-full sm:w-auto text-center space-y-3">
           <label className="block font-bold text-gray-800 text-lg truncate">{vote.teamB}</label>
           <div className="flex items-center justify-center space-x-3">
             <StepperButton onClick={() => handleScoreChange(setScoreB, -1)} disabled={scoreB <= 0} aria-label={`${vote.teamB} 점수 감소`}>
@@ -78,7 +90,9 @@ const ScoreVote: React.FC<ScoreVoteProps> = ({ vote, onVote }) => {
         </div>
       </div>
       <div className="pt-4">
-        <Button type="submit" className="w-full" size="lg">예측 제출하기</Button>
+        <Button type="submit" className="w-full" size="lg">
+          {vote.userVote ? '예측 수정하기' : '예측 제출하기'}
+        </Button>
       </div>
     </form>
   );

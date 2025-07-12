@@ -274,9 +274,14 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote, squadPlay
                   </Select>
                 </div>
                 <div>
-                  <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">마감일</label>
-                  <Input id="endDate" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} required 
-                    min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0]}
+                  <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">마감 시간</label>
+                  <Input 
+                    id="endDate" 
+                    type="datetime-local" 
+                    value={endDate} 
+                    onChange={e => setEndDate(e.target.value)} 
+                    required 
+                    min={new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16)}
                   />
                 </div>
             </div>

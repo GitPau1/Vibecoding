@@ -40,6 +40,14 @@ export interface Vote {
   user_id?: string;
   teamA?: string; // For MATCH type
   teamB?: string; // For MATCH type
+  finalScore?: string; // For MATCH type
+}
+
+// New type for individual user votes
+export interface UserVote {
+  vote_id: string;
+  user_id: string;
+  vote_value: string;
 }
 
 // New Article Type
