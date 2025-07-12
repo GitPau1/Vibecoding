@@ -9,6 +9,7 @@ import { PlusIcon } from './icons/PlusIcon';
 import { useToast } from '../contexts/ToastContext';
 import { UsersIcon } from './icons/UsersIcon';
 import LoadFromSquadModal from './LoadFromSquadModal';
+import { ImageWithFallback } from './ui/ImageWithFallback';
 
 interface PlayerInputsProps {
     playerList: { name: string; team: string; photoUrl: string }[];
@@ -71,6 +72,7 @@ const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating, squ
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
   const [endDate, setEndDate] = useState(new Date().toISOString().split("T")[0]); // Default to today
   const { addToast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -186,6 +188,7 @@ const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating, squ
         description: description.trim(), 
         type: VoteKind.RATING, 
         endDate, 
+        imageUrl,
         players: votePlayers,
         options: [] // Options are generated from players in the handler
     });
@@ -215,6 +218,28 @@ const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating, squ
               <Input as="textarea" id="description" value={description} onChange={e => setDescription(e.target.value)} placeholder="평점에 대한 간단한 설명을 입력하세요." />
             </div>
             
+            <div>
+              <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700 mb-1">대표 이미지 URL (선택)</label>
+              <Input
+                id="imageUrl"
+                value={imageUrl || ''}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="https://example.com/image.png"
+              />
+              {imageUrl && (
+                <div className="mt-4 text-center">
+                  <ImageWithFallback src={imageUrl} alt="Preview" className="mx-auto h-32 w-auto object-cover rounded-md border" />
+                  <button
+                    type="button"
+                    onClick={() => setImageUrl(undefined)}
+                    className="mt-2 text-sm font-medium text-red-600 hover:text-red-500"
+                  >
+                    이미지 링크 삭제
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div>
                 <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">경기 날짜</label>
                 <Input id="endDate" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} required />

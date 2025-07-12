@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Vote, VoteKind, Player, Article, XPost, SquadPlayer, PlayerPosition, ArticleUpdateData, XPostUpdateData, Profile } from './types';
@@ -486,6 +487,7 @@ const AppContent: React.FC = () => {
             description: newRatingData.description ?? null,
             type: VoteKind.RATING,
             end_date: newRatingData.endDate,
+            image_url: newRatingData.imageUrl ?? null,
             players: newRatingData.players ?? null,
             user_id: session!.user.id,
         };
