@@ -1,8 +1,7 @@
 
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { Vote, VoteKind, Player, Article, XPost, SquadPlayer, PlayerPosition, ArticleUpdateData, XPostUpdateData, Profile, UserVote } from './types';
+import { Vote, Player, Article, XPost, SquadPlayer, PlayerPosition, ArticleUpdateData, XPostUpdateData, Profile, UserVote, PlayerRating, PlayerRatingSubmission, VoteKind } from './types';
 import Header from './components/Header';
 import HomePage from './components/HomePage';
 import VotePage from './components/VotePage';
@@ -11,7 +10,7 @@ import CreateHubPage from './components/CreateHubPage';
 import CreateRatingPage from './components/CreateRatingPage';
 import { ToastProvider, useToast } from './contexts/ToastContext';
 import { supabase, Database } from './lib/supabaseClient';
-import { MOCK_VOTES, MOCK_RATINGS, MOCK_ARTICLES, MOCK_X_POSTS, MOCK_SQUAD_PLAYERS } from './constants';
+import { MOCK_VOTES, MOCK_PLAYER_RATINGS, MOCK_ARTICLES, MOCK_X_POSTS, MOCK_SQUAD_PLAYERS } from './constants';
 import { BugIcon } from './components/icons/BugIcon';
 import BugReportPage from './components/BugReportPage';
 import ArticlePage from './components/ArticlePage';
@@ -25,11 +24,15 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LoginPage from './components/LoginPage';
 import SignUpPage from './components/SignUpPage';
 import AuthModal from './components/AuthModal';
+import PlayerRatingDetailPage from './components/PlayerRatingDetailPage';
 
 
-export interface VoteCreationData extends Pick<Vote, 'title' | 'description' | 'type' | 'endDate' | 'imageUrl' | 'players' | 'teamA' | 'teamB'> {
+export interface VoteCreationData extends Pick<Vote, 'title' | 'description' | 'type' | 'endDate' | 'imageUrl' | 'teamA' | 'teamB'> {
   options: {label: string}[];
+  players?: Player[]; // Only for Player type
 }
+
+export interface PlayerRatingCreationData extends Pick<PlayerRating, 'title' | 'description' | 'endDate' | 'imageUrl' | 'players'> {}
 
 export type ArticleCreationData = Omit<Article, 'id' | 'createdAt' | 'recommendations' | 'userRecommended' | 'views' | 'user_id' | 'author'>;
 export type XPostCreationData = Omit<XPost, 'id' | 'createdAt' | 'user_id' | 'author'>;
@@ -66,7 +69,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }
 
 const AppContent: React.FC = () => {
   const [votes, setVotes] = useState<Vote[]>([]);
-  const [ratings, setRatings] = useState<Vote[]>([]);
+  const [playerRatings, setPlayerRatings] = useState<PlayerRating[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
   const [xPosts, setXPosts] = useState<XPost[]>([]);
   const [squadPlayers, setSquadPlayers] = useState<SquadPlayer[]>([]);
@@ -82,13 +85,10 @@ const AppContent: React.FC = () => {
   const fetchAllData = useCallback(async () => {
     if (isLocalMode) return;
     try {
-      // Fetch votes and ratings
+      // Fetch votes
       const { data: voteData, error: voteError } = await supabase!
         .from('votes')
-        .select(`
-          id, title, description, type, image_url, end_date, created_at, players, user_id, team_a, team_b, final_score,
-          options:vote_options(id, label, votes, rating_count, comments)
-        `)
+        .select(`*, options:vote_options(*)`)
         .order('created_at', { ascending: false });
       if (voteError) throw voteError;
       
@@ -103,51 +103,61 @@ const AppContent: React.FC = () => {
       }
       
       const userVoteMap: { [voteId: string]: string } = {};
-      userVotesFromDb.forEach(uv => {
-          userVoteMap[uv.vote_id] = uv.vote_value;
-      });
+      userVotesFromDb.forEach(uv => { userVoteMap[uv.vote_id] = uv.vote_value; });
 
-      const allVotes: Vote[] = (voteData || []).map((v) => {
-        const voteValue = userVoteMap[v.id];
-        let userVote: string | undefined;
-        let userRatings: { [key: number]: { rating: number; comment: string | null } } | undefined;
-        
-        if (voteValue) {
-          if (v.type as VoteKind === VoteKind.RATING) {
-            try {
-              userRatings = JSON.parse(voteValue);
-            } catch (e) { console.error(`Failed to parse user ratings for vote ${v.id}:`, e); }
-          } else {
-            userVote = voteValue;
-          }
-        }
-        
-        return {
-            id: v.id,
-            title: v.title,
-            description: v.description,
-            type: v.type as VoteKind,
-            endDate: v.end_date,
-            createdAt: v.created_at,
-            imageUrl: v.image_url,
-            players: v.players as Player[] | null,
-            user_id: v.user_id,
-            teamA: v.team_a,
-            teamB: v.team_b,
-            finalScore: v.final_score || undefined,
-            options: v.options.map((o) => ({
-              id: o.id,
-              label: o.label,
-              votes: o.votes,
-              rating_count: o.rating_count,
-              comments: o.comments as string[] | undefined,
-            })),
-            userVote: userVote,
-            userRatings: userRatings,
-        };
-      });
-      setVotes(allVotes.filter(v => v.type !== VoteKind.RATING));
-      setRatings(allVotes.filter(v => v.type === VoteKind.RATING));
+      setVotes((voteData || []).map((v) => ({
+        ...v,
+        imageUrl: v.image_url,
+        endDate: v.end_date,
+        createdAt: v.created_at,
+        teamA: v.team_a,
+        teamB: v.team_b,
+        finalScore: v.final_score,
+        userVote: userVoteMap[v.id],
+        players: v.players ?? undefined,
+      } as Vote)));
+
+      // Fetch Player Ratings and their stats
+      const { data: ratingData, error: ratingError } = await supabase!
+          .from('player_ratings')
+          .select('*, stats:player_rating_stats(*)')
+          .order('created_at', { ascending: false });
+      if (ratingError) throw ratingError;
+
+      let userSubmissions: PlayerRatingSubmission[] = [];
+      if (session) {
+          const { data, error } = await supabase!
+              .from('player_rating_submissions')
+              .select('*')
+              .eq('user_id', session.user.id);
+          if (error) throw error;
+          userSubmissions = data.map(s => ({
+              ...s,
+              ratingId: s.rating_id,
+              userId: s.user_id,
+              playerId: s.player_id,
+          }));
+      }
+      
+      setPlayerRatings((ratingData || []).map(r => {
+          const relatedSubmissions = userSubmissions.filter(s => s.ratingId === r.id);
+          return {
+              ...r,
+              imageUrl: r.image_url,
+              endDate: r.end_date,
+              createdAt: r.created_at,
+              players: r.players,
+              stats: r.stats.map((s: any) => ({
+                playerId: s.player_id,
+                playerName: s.player_name,
+                averageRating: s.average_rating,
+                ratingCount: s.rating_count,
+                comments: s.comments || [],
+              })),
+              userSubmission: relatedSubmissions.length > 0 ? relatedSubmissions : undefined,
+          } as PlayerRating
+      }));
+
 
       // Fetch articles
       const { data: articleData, error: articleError } = await supabase!
@@ -215,11 +225,10 @@ const AppContent: React.FC = () => {
 
     if (isLocalMode) {
       const userVotes = JSON.parse(localStorage.getItem('userVotes') || '{}');
-      const userRatings = JSON.parse(localStorage.getItem('userRatings') || '{}');
       const userRecommendedArticles = JSON.parse(localStorage.getItem('userRecommendedArticles') || '{}');
 
       setVotes(JSON.parse(JSON.stringify(MOCK_VOTES)).map((v: Vote) => ({ ...v, userVote: userVotes[v.id] })));
-      setRatings(JSON.parse(JSON.stringify(MOCK_RATINGS)).map((r: Vote) => ({ ...r, userRatings: userRatings[r.id] })));
+      setPlayerRatings(JSON.parse(JSON.stringify(MOCK_PLAYER_RATINGS)));
       setArticles(JSON.parse(JSON.stringify(MOCK_ARTICLES)).map((a: Article) => ({ ...a, userRecommended: !!userRecommendedArticles[a.id] })));
       setXPosts(JSON.parse(JSON.stringify(MOCK_X_POSTS)));
       setSquadPlayers(JSON.parse(JSON.stringify(MOCK_SQUAD_PLAYERS)));
@@ -243,45 +252,41 @@ const AppContent: React.FC = () => {
     );
   }
 
-  const handleVote = async (voteId: string, optionIdentifier: string) => {
-    // This now only handles PLAYER and TOPIC votes
+  const handleVote = async (voteId: string, optionId: string) => {
     const vote = votes.find(v => v.id === voteId);
-    if (!vote || vote.type === VoteKind.MATCH) return;
+    if (!vote) return;
+    
+    const option = vote.options.find(o => o.id === optionId);
+    if (!option) return;
 
-    if ((vote.type === VoteKind.PLAYER || vote.type === VoteKind.TOPIC)) {
-      // Logic for anonymous voting
-      const option = vote.options.find(o => o.id === optionIdentifier);
-      if (!option) return;
+    const updateLocalState = () => {
+      setVotes(prevVotes =>
+        prevVotes.map(v => {
+          if (v.id === voteId) {
+            const newOptions = v.options.map(o =>
+              o.id === optionId ? { ...o, votes: o.votes + 1 } : o
+            );
+            return { ...v, options: newOptions, userVote: optionId };
+          }
+          return v;
+        })
+      );
+      const userVotes = JSON.parse(localStorage.getItem('userVotes') || '{}');
+      userVotes[voteId] = optionId;
+      localStorage.setItem('userVotes', JSON.stringify(userVotes));
+    };
 
-      const updateLocalState = () => {
-        setVotes(prevVotes =>
-          prevVotes.map(v => {
-            if (v.id === voteId) {
-              const newOptions = v.options.map(o =>
-                o.id === optionIdentifier ? { ...o, votes: o.votes + 1 } : o
-              );
-              return { ...v, options: newOptions, userVote: optionIdentifier };
-            }
-            return v;
-          })
-        );
-        const userVotes = JSON.parse(localStorage.getItem('userVotes') || '{}');
-        userVotes[voteId] = optionIdentifier;
-        localStorage.setItem('userVotes', JSON.stringify(userVotes));
-      };
-
-      if (isLocalMode) {
-        updateLocalState();
-        return;
-      }
-
-      const { error } = await supabase!.rpc('increment_vote', { option_id_to_inc: option.id });
-      if (error) {
-        addToast(`투표 처리 중 오류가 발생했습니다: ${error.message}`, 'error');
-        return;
-      }
+    if (isLocalMode) {
       updateLocalState();
+      return;
     }
+
+    const { error } = await supabase!.rpc('increment_vote', { option_id_to_inc: option.id });
+    if (error) {
+      addToast(`투표 처리 중 오류가 발생했습니다: ${error.message}`, 'error');
+      return;
+    }
+    updateLocalState();
   };
 
   const handleCastOrUpdateScoreVote = async (voteId: string, score: string) => {
@@ -304,7 +309,6 @@ const AppContent: React.FC = () => {
           if (error) throw error;
           
           addToast('스코어 예측이 제출(수정)되었습니다!', 'success');
-          // Refetch all data to get the latest state including aggregates
           await fetchAllData();
       } catch (error: any) {
           addToast(`스코어 예측 실패: ${error.message}`, 'error');
@@ -334,55 +338,33 @@ const AppContent: React.FC = () => {
       }
   };
   
-  const handlePlayerRatingSubmit = async (ratingId: string, playerRatings: { [playerId: number]: { rating: number; comment: string | null; }; }) => {
+  const handlePlayerRatingSubmit = async (ratingId: string, submissions: Omit<PlayerRatingSubmission, 'userId' | 'ratingId'>[]) => {
     if (!session) {
         setIsAuthModalOpen(true);
         return;
     }
 
     if (isLocalMode) {
-      // For local testing, we still use localStorage to simulate user-specific votes
-      const userRatings = JSON.parse(localStorage.getItem('userRatings') || '{}');
-      userRatings[ratingId] = playerRatings;
-      localStorage.setItem('userRatings', JSON.stringify(userRatings));
       addToast('평점이 제출되었습니다. (로컬)', 'success');
-      // Re-trigger a "fetch" to update the UI from localStorage
-      const mockUserRatings = JSON.parse(localStorage.getItem('userRatings') || '{}');
-      setRatings(prev => prev.map(r => ({ ...r, userRatings: mockUserRatings[r.id] })));
+      // In local mode, we don't have a DB to aggregate, so we just show submitted state
+      setPlayerRatings(prev => prev.map(r => r.id === ratingId ? { ...r, userSubmission: [{ratingId, userId: 'mock-user', playerId: 1, rating: 10, comment: 'test'}] } : r));
       return;
     }
     
     try {
-        const rating = ratings.find(r => r.id === ratingId);
-        if (!rating) throw new Error("해당 평점을 찾을 수 없습니다.");
-
-        // 1. Prepare payload for aggregation RPC
-        const ratingsPayload = Object.entries(playerRatings).map(([playerId, data]) => {
-            const player = rating.players?.find(p => p.id === Number(playerId));
-            if (!player) return null;
-            const option = rating.options.find(o => o.label === player.name);
-            if (!option) return null;
-            
-            return {
-                option_id: option.id,
-                rating: data.rating,
-                comment: data.comment,
-            };
-        }).filter(Boolean);
-
-        // 2. Call aggregation RPC
-        if (ratingsPayload.length > 0) {
-            const { error: rpcError } = await supabase!.rpc('submit_player_ratings', { ratings: ratingsPayload });
-            if (rpcError) throw rpcError;
-        }
-
-        // 3. Log the user's individual vote to the user_votes table
-        const { error: voteLogError } = await supabase!.from('user_votes').upsert({
-            vote_id: ratingId,
+        const submissionsPayload: Database['public']['Tables']['player_rating_submissions']['Insert'][] = submissions.map(s => ({
+            rating_id: ratingId,
             user_id: session.user.id,
-            vote_value: JSON.stringify(playerRatings),
+            player_id: s.playerId,
+            rating: s.rating,
+            comment: s.comment,
+        }));
+        
+        const { error } = await supabase!.from('player_rating_submissions').upsert(submissionsPayload, {
+            onConflict: 'rating_id, user_id, player_id'
         });
-        if (voteLogError) throw voteLogError;
+
+        if (error) throw error;
 
         addToast('평점이 제출되었습니다. 감사합니다!', 'success');
         await fetchAllData(); // Refresh all data from DB to show new aggregate results
@@ -392,12 +374,6 @@ const AppContent: React.FC = () => {
   };
 
   const handleCreateVote = async (newVoteData: VoteCreationData) => {
-    const commonLogic = (newVote: Vote) => {
-        setVotes((prev: Vote[]) => [newVote, ...prev]);
-        navigate('/');
-        addToast('투표가 성공적으로 생성되었습니다.', 'success');
-    };
-
     if (isLocalMode) {
         const voteToAdd: Vote = {
             ...newVoteData,
@@ -409,22 +385,25 @@ const AppContent: React.FC = () => {
                 label: o.label,
                 votes: 0,
             })),
+            players: newVoteData.players,
         };
-        commonLogic(voteToAdd);
+        setVotes((prev: Vote[]) => [voteToAdd, ...prev]);
+        navigate('/');
+        addToast('투표가 성공적으로 생성되었습니다.', 'success');
         return;
     }
 
     try {
-        const voteInsertPayload = {
+        const voteInsertPayload: Database['public']['Tables']['votes']['Insert'] = {
             title: newVoteData.title,
             description: newVoteData.description ?? null,
             type: newVoteData.type,
             end_date: newVoteData.endDate,
             image_url: newVoteData.imageUrl ?? null,
-            players: newVoteData.players ?? null,
             user_id: session!.user.id,
             team_a: newVoteData.teamA ?? null,
             team_b: newVoteData.teamB ?? null,
+            players: newVoteData.type === VoteKind.PLAYER ? newVoteData.players ?? null : null,
         };
 
         const { data: vote, error: voteError } = await supabase!
@@ -435,14 +414,23 @@ const AppContent: React.FC = () => {
 
         if (voteError) throw voteError;
         if (!vote) throw new Error("Vote creation failed, no data returned.");
-
-        const optionsToInsert = newVoteData.options.map((opt) => ({
-            vote_id: vote.id,
-            label: opt.label,
-        }));
         
-        if (optionsToInsert.length > 0) {
-            const { error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert).select();
+        // For Player type, create options from players
+        if(newVoteData.type === VoteKind.PLAYER && newVoteData.players) {
+            const optionsToInsert: Database['public']['Tables']['vote_options']['Insert'][] = newVoteData.players.map(p => ({
+                vote_id: vote.id,
+                label: p.name
+            }));
+             if (optionsToInsert.length > 0) {
+                const { error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert);
+                if (optionsError) throw optionsError;
+            }
+        } else if (newVoteData.options.length > 0) {
+            const optionsToInsert: Database['public']['Tables']['vote_options']['Insert'][] = newVoteData.options.map((opt) => ({
+                vote_id: vote.id,
+                label: opt.label,
+            }));
+            const { error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert);
             if (optionsError) throw optionsError;
         }
         
@@ -455,75 +443,38 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const handleCreateRating = async (newRatingData: VoteCreationData) => {
-     const commonLogic = (newRating: Vote) => {
-        setRatings(prev => [newRating, ...prev]);
-        navigate('/');
-        addToast('선수 평점이 성공적으로 생성되었습니다.', 'success');
-    };
-
-    if (isLocalMode) {
-        const ratingToAdd: Vote = {
+  const handleCreatePlayerRating = async (newRatingData: PlayerRatingCreationData) => {
+     if (isLocalMode) {
+        const ratingToAdd: PlayerRating = {
             ...newRatingData,
             id: `mock-rating-${Date.now()}`,
             createdAt: new Date().toISOString(),
             user_id: 'mock-user-id',
-            options: newRatingData.players!.map(p => ({
-                id: String(p.id),
-                label: p.name,
-                votes: 0,
-                ratingCount: 0,
-                comments: [],
-            })),
+            stats: [],
         };
-        commonLogic(ratingToAdd);
+        setPlayerRatings(prev => [ratingToAdd, ...prev]);
+        navigate('/');
+        addToast('선수 평점이 성공적으로 생성되었습니다.', 'success');
         return;
     }
 
     try {
-        const voteInsertPayload = {
+        const ratingInsertPayload: Database['public']['Tables']['player_ratings']['Insert'] = {
             title: newRatingData.title,
             description: newRatingData.description ?? null,
-            type: VoteKind.RATING,
             end_date: newRatingData.endDate,
             image_url: newRatingData.imageUrl ?? null,
-            players: newRatingData.players ?? null,
+            players: newRatingData.players,
             user_id: session!.user.id,
         };
+        const { data: rating, error } = await supabase!.from('player_ratings').insert(ratingInsertPayload).select().single();
 
-        const { data: vote, error: voteError } = await supabase!.from('votes').insert(voteInsertPayload).select().single();
+        if (error) throw error;
+        if (!rating) throw new Error("Rating creation failed");
 
-        if (voteError) throw voteError;
-        if (!vote) throw new Error("Rating creation failed");
-
-        const optionsToInsert = newRatingData.players!.map(p => ({
-            vote_id: vote.id,
-            label: p.name,
-        }));
-        
-        const { data: insertedOptions, error: optionsError } = await supabase!.from('vote_options').insert(optionsToInsert).select();
-        if (optionsError) throw optionsError;
-        if (!insertedOptions) throw new Error("Failed to get created options back");
-
-        const newRatingWithDetails: Vote = {
-            id: vote.id,
-            createdAt: vote.created_at,
-            title: vote.title,
-            description: vote.description || undefined,
-            type: vote.type as VoteKind,
-            endDate: vote.end_date,
-            imageUrl: vote.image_url || undefined,
-            players: vote.players as Player[] || undefined,
-            user_id: vote.user_id,
-            options: insertedOptions.map((o) => ({
-                id: o.id,
-                label: o.label,
-                votes: o.votes,
-                ratingCount: o.rating_count || 0,
-                comments: o.comments || [],
-            })),
-        };
-        commonLogic(newRatingWithDetails);
+        await fetchAllData();
+        navigate('/');
+        addToast('평점이 성공적으로 생성되었습니다.', 'success');
 
     } catch (error: any) {
         addToast(`평점 생성 실패: ${error.message}`, 'error');
@@ -548,12 +499,13 @@ const AppContent: React.FC = () => {
     }
 
     try {
-      const { data, error } = await supabase!.from('articles').insert({
+      const articleInsertPayload: Database['public']['Tables']['articles']['Insert'] = {
         title: newArticleData.title,
         body: newArticleData.body,
         image_url: newArticleData.imageUrl ?? null,
         user_id: session!.user.id,
-      }).select('*, author:profiles(id, nickname)').single();
+      };
+      const { data, error } = await supabase!.from('articles').insert(articleInsertPayload).select('*, author:profiles(id, nickname)').single();
 
       if (error) throw error;
       if (!data) throw new Error('Article creation failed');
@@ -588,11 +540,12 @@ const AppContent: React.FC = () => {
     }
     
     try {
-      const { data, error } = await supabase!.from('articles').update({
+      const articleUpdatePayload: Database['public']['Tables']['articles']['Update'] = {
         title: updateData.title,
         body: updateData.body,
         image_url: updateData.imageUrl ?? null
-      }).eq('id', articleId).select('*, author:profiles(id, nickname)').single();
+      };
+      const { data, error } = await supabase!.from('articles').update(articleUpdatePayload).eq('id', articleId).select('*, author:profiles(id, nickname)').single();
       
       if (error) throw error;
       if (!data) throw new Error('Article update failed');
@@ -716,11 +669,12 @@ const AppContent: React.FC = () => {
     }
 
     try {
-      const { data, error } = await supabase!.from('x_posts').insert({
+      const xpostInsertPayload: Database['public']['Tables']['x_posts']['Insert'] = {
         description: newXPostData.description,
         post_url: newXPostData.postUrl,
         user_id: session!.user.id,
-      }).select('*, author:profiles(id, nickname)').single();
+      };
+      const { data, error } = await supabase!.from('x_posts').insert(xpostInsertPayload).select('*, author:profiles(id, nickname)').single();
 
       if (error) throw error;
       if (!data) throw new Error('XPost creation failed');
@@ -751,10 +705,11 @@ const AppContent: React.FC = () => {
     }
 
     try {
-      const { data, error } = await supabase!.from('x_posts').update({
+      const xpostUpdatePayload: Database['public']['Tables']['x_posts']['Update'] = {
         description: updateData.description,
         post_url: updateData.postUrl,
-      }).eq('id', postId).select('*, author:profiles(id, nickname)').single();
+      };
+      const { data, error } = await supabase!.from('x_posts').update(xpostUpdatePayload).eq('id', postId).select('*, author:profiles(id, nickname)').single();
 
       if (error) throw error;
       if (!data) throw new Error('XPost update failed');
@@ -820,12 +775,13 @@ const AppContent: React.FC = () => {
         screenshot_url = urlData.publicUrl;
       }
       
-      const { error: insertError } = await supabase!.from('bug_reports').insert({
+      const bugReportPayload: Database['public']['Tables']['bug_reports']['Insert'] = {
         title,
         description,
         url,
         screenshot_url
-      });
+      };
+      const { error: insertError } = await supabase!.from('bug_reports').insert(bugReportPayload);
 
       if (insertError) throw insertError;
 
@@ -851,12 +807,13 @@ const AppContent: React.FC = () => {
     }
 
     try {
-      const { data, error } = await supabase!.from('squad_players').insert({
+      const squadPlayerPayload: Database['public']['Tables']['squad_players']['Insert'] = {
         name: playerData.name,
         number: playerData.number,
         position: playerData.position,
         photo_url: playerData.photoUrl ?? null,
-      }).select().single();
+      };
+      const { data, error } = await supabase!.from('squad_players').insert(squadPlayerPayload).select().single();
 
       if (error) throw error;
       const newPlayer: SquadPlayer = {
@@ -882,12 +839,13 @@ const AppContent: React.FC = () => {
     }
     
     try {
-      const { data, error } = await supabase!.from('squad_players').update({
+      const squadPlayerUpdatePayload: Database['public']['Tables']['squad_players']['Update'] = {
         name: playerData.name,
         number: playerData.number,
         position: playerData.position,
         photo_url: playerData.photoUrl ?? null,
-      }).eq('id', playerId).select().single();
+      };
+      const { data, error } = await supabase!.from('squad_players').update(squadPlayerUpdatePayload).eq('id', playerId).select().single();
 
       if (error) throw error;
        const updatedPlayer: SquadPlayer = {
@@ -922,16 +880,14 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const allItems = [...votes, ...ratings];
-
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
       <main className="container mx-auto max-w-7xl p-4 sm:p-6 lg:p-8 flex-grow">
         <Routes>
-          <Route path="/" element={<HomePage votes={votes} ratings={ratings} articles={articles} xPosts={xPosts} />} />
-          <Route path="/vote/:id" element={<VotePage allItems={allItems} onVote={handleVote} onRatePlayers={handlePlayerRatingSubmit} onUpdateScoreVote={handleCastOrUpdateScoreVote} onEnterResult={handleEnterMatchResult} onRequestLogin={() => setIsAuthModalOpen(true)} />} />
-          <Route path="/rating/:id" element={<VotePage allItems={allItems} onVote={handleVote} onRatePlayers={handlePlayerRatingSubmit} onUpdateScoreVote={handleCastOrUpdateScoreVote} onEnterResult={handleEnterMatchResult} onRequestLogin={() => setIsAuthModalOpen(true)} />} />
+          <Route path="/" element={<HomePage votes={votes} playerRatings={playerRatings} articles={articles} xPosts={xPosts} />} />
+          <Route path="/vote/:id" element={<VotePage votes={votes} onVote={handleVote} onUpdateScoreVote={handleCastOrUpdateScoreVote} onEnterResult={handleEnterMatchResult} />} />
+          <Route path="/rating/:id" element={<PlayerRatingDetailPage playerRatings={playerRatings} onRatePlayers={handlePlayerRatingSubmit} onRequestLogin={() => setIsAuthModalOpen(true)} />} />
           <Route path="/article/:id" element={<ArticlePage articles={articles} onRecommend={handleRecommendArticle} onView={handleViewArticle} onDelete={handleDeleteArticle} />} />
           <Route path="/x-post/:id" element={<XPostPage xPosts={xPosts} onDelete={handleDeleteXPost} />} />
           <Route path="/report-bug" element={<BugReportPage onSubmit={handleCreateBugReport} />} />
@@ -943,7 +899,7 @@ const AppContent: React.FC = () => {
           {/* Protected Routes */}
           <Route path="/create" element={<ProtectedRoute><CreateHubPage /></ProtectedRoute>} />
           <Route path="/create/vote" element={<ProtectedRoute><CreateVotePage onCreateVote={handleCreateVote} squadPlayers={squadPlayers} /></ProtectedRoute>} />
-          <Route path="/create/rating" element={<ProtectedRoute><CreateRatingPage onCreateRating={handleCreateRating} squadPlayers={squadPlayers} /></ProtectedRoute>} />
+          <Route path="/create/rating" element={<ProtectedRoute><CreateRatingPage onCreateRating={handleCreatePlayerRating} squadPlayers={squadPlayers} /></ProtectedRoute>} />
           <Route path="/create/article" element={<ProtectedRoute><CreateArticlePage onCreateArticle={handleCreateArticle} /></ProtectedRoute>} />
           <Route path="/create/x-post" element={<ProtectedRoute><CreateXPostPage onCreateXPost={handleCreateXPost} /></ProtectedRoute>} />
           <Route path="/squad" element={<ProtectedRoute><SquadPage players={squadPlayers} onAddPlayer={handleCreateSquadPlayer} onUpdatePlayer={handleUpdateSquadPlayer} onDeletePlayer={handleDeleteSquadPlayer} /></ProtectedRoute>} />

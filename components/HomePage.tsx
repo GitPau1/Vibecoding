@@ -1,15 +1,15 @@
 
-
 import React, { useState, useMemo } from 'react';
-import { Vote, Article, XPost, VoteKind } from '../types';
+import { Vote, Article, XPost, VoteKind, PlayerRating } from '../types';
 import VoteCard from './VoteCard';
 import ArticleCard from './ArticleCard';
 import XPostCard from './XPostCard';
 import Carousel from './Carousel';
+import PlayerRatingCard from './PlayerRatingCard';
 
 interface HomePageProps {
   votes: Vote[];
-  ratings: Vote[];
+  playerRatings: PlayerRating[];
   articles: Article[];
   xPosts: XPost[];
 }
@@ -23,16 +23,16 @@ type CarouselItem = {
   category: string;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ votes, ratings, articles, xPosts }) => {
+const HomePage: React.FC<HomePageProps> = ({ votes, playerRatings, articles, xPosts }) => {
   const [activeTab, setActiveTab] = useState<'match' | 'vote' | 'articles' | 'x-posts'>('match');
 
   const matchItems = useMemo(() => {
     const combined = [
         ...votes.filter(v => v.type === VoteKind.MATCH), 
-        ...ratings
+        ...playerRatings
     ];
     return combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [votes, ratings]);
+  }, [votes, playerRatings]);
 
   const voteItems = useMemo(() => {
     return votes.filter(v => v.type === VoteKind.PLAYER || v.type === VoteKind.TOPIC)
@@ -46,7 +46,7 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, articles, xPosts })
   const recentItems: CarouselItem[] = useMemo(() => {
     const allContent = [
         ...votes.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/vote/${item.id}`, category: item.type })),
-        ...ratings.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/rating/${item.id}`, category: item.type })),
+        ...playerRatings.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/rating/${item.id}`, category: '선수 평점' })),
         ...articles.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/article/${item.id}`, category: '아티클' })),
         ...xPosts.map(item => ({ id: item.id, title: item.description, imageUrl: undefined, createdAt: item.createdAt, path: `/x-post/${item.id}`, category: '최신 소식' })),
     ];
@@ -54,7 +54,7 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, articles, xPosts })
         .filter(item => item.createdAt)
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 5);
-  }, [votes, ratings, articles, xPosts]);
+  }, [votes, playerRatings, articles, xPosts]);
 
 
   const getTabClassName = (tabName: typeof activeTab) => {
@@ -85,7 +85,7 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, articles, xPosts })
                  <h3 className="text-2xl font-bold text-gray-900 mb-4">매치 콘텐츠</h3>
                 {matchItems.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 desktop:grid-cols-3 gap-6">
-                    {matchItems.map(item => <VoteCard key={item.id} vote={item} />)}
+                    {matchItems.map(item => 'type' in item ? <VoteCard key={item.id} vote={item} /> : <PlayerRatingCard key={item.id} rating={item} />)}
                   </div>
                 ) : (
                   <div className="text-center py-12 px-6 bg-gray-100 rounded-2xl">

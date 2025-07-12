@@ -1,8 +1,7 @@
 
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Vote, VoteKind } from '../types';
+import { Vote } from '../types';
 import { Card } from './ui/Card';
 import { ImageWithFallback } from './ui/ImageWithFallback';
 import { UsersIcon } from './icons/UsersIcon';
@@ -20,13 +19,10 @@ const VoteCard: React.FC<VoteCardProps> = ({ vote }) => {
   const diffTime = Math.abs(endDate.getTime() - now.getTime());
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   
-  const totalVotes = vote.type === VoteKind.RATING
-    ? (vote.options[0]?.ratingCount || 0)
-    : vote.options.reduce((sum, option) => sum + option.votes, 0);
+  const totalVotes = vote.options.reduce((sum, option) => sum + option.votes, 0);
   
   const handleSelectVote = () => {
-    const path = vote.type === VoteKind.RATING ? `/rating/${vote.id}` : `/vote/${vote.id}`;
-    navigate(path);
+    navigate(`/vote/${vote.id}`);
   }
 
   return (
@@ -55,10 +51,8 @@ const VoteCard: React.FC<VoteCardProps> = ({ vote }) => {
         </div>
         <div className="border-t border-gray-200 px-6 py-3 bg-gray-50 rounded-b-2xl">
             <div className="flex justify-end items-center text-xs font-bold">
-                 {isExpired && vote.type !== VoteKind.RATING ? (
+                 {isExpired ? (
                     <span className="text-gray-500">투표 종료</span>
-                ) : vote.type === VoteKind.RATING ? (
-                    <span className="text-green-600">평점 진행중</span>
                 ) : (
                     <span className="text-[#6366f1]">{diffDays}일 남음</span>
                 )}

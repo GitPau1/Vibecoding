@@ -1,21 +1,20 @@
 
-
 import React, { useMemo } from 'react';
-import { Vote, Player } from '../types';
+import { PlayerRating, Player } from '../types';
 import { Card } from './ui/Card';
 import { TrophyIcon } from './icons/TrophyIcon';
 import { ImageWithFallback } from './ui/ImageWithFallback';
 
 interface PlayerRatingResultsProps {
-    vote: Vote;
+    rating: PlayerRating;
     isExpired: boolean;
 }
 
-const PlayerRatingResults: React.FC<PlayerRatingResultsProps> = ({ vote, isExpired }) => {
+const PlayerRatingResults: React.FC<PlayerRatingResultsProps> = ({ rating, isExpired }) => {
     const { starters, substitutes } = useMemo(() => {
         const starters: Player[] = [];
         const substitutes: Player[] = [];
-        vote.players?.forEach(p => {
+        rating.players?.forEach(p => {
             if (p.isStarter) {
                 starters.push(p);
             } else {
@@ -23,69 +22,31 @@ const PlayerRatingResults: React.FC<PlayerRatingResultsProps> = ({ vote, isExpir
             }
         });
         return { starters, substitutes };
-    }, [vote.players]);
-
-    const playerRatings = useMemo(() => {
-        const ratings: { [playerId: number]: { avg: number; count: number } } = {};
-        if (!vote.players) return ratings;
-        
-        vote.options.forEach(option => {
-            const player = vote.players.find(p => p.name === option.label);
-            if (player && option.ratingCount && option.ratingCount > 0) {
-                ratings[player.id] = {
-                    avg: option.votes / option.ratingCount,
-                    count: option.ratingCount
-                };
-            }
-        });
-        return ratings;
-    }, [vote.options, vote.players]);
+    }, [rating.players]);
 
     const highestAvgRating = useMemo(() => {
-        return Math.max(0, ...Object.values(playerRatings).map(r => r.avg));
-    }, [playerRatings]);
+        if (!rating.stats || rating.stats.length === 0) return 0;
+        return Math.max(0, ...rating.stats.map(r => r.averageRating));
+    }, [rating.stats]);
     
     const manOfTheMatch = useMemo(() => {
-        if (!isExpired || highestAvgRating <= 0) return null;
+        if (!isExpired || highestAvgRating <= 0 || !rating.stats) return null;
     
-        const momPlayers = vote.players?.filter(p => {
-            const ratingInfo = playerRatings[p.id];
-            return ratingInfo && ratingInfo.avg.toFixed(2) === highestAvgRating.toFixed(2);
-        }) || [];
-    
-        return momPlayers; // Return array of players
-    }, [isExpired, highestAvgRating, playerRatings, vote.players]);
-    
-    const groupedComments = useMemo(() => {
-        if (!vote.players) return [];
+        const momStats = rating.stats.filter(stat => stat.averageRating.toFixed(2) === highestAvgRating.toFixed(2));
+        if (momStats.length === 0) return null;
 
-        const commentsByPlayer: { [playerName: string]: string[] } = {};
-        vote.options.forEach(option => {
-            const player = vote.players.find(p => p.name === option.label);
-            if (player && option.comments && Array.isArray(option.comments) && option.comments.length > 0) {
-                 if (!commentsByPlayer[player.name]) {
-                    commentsByPlayer[player.name] = [];
-                }
-                const validComments = option.comments.filter(c => typeof c === 'string' && c.trim() !== '');
-                if(validComments.length > 0) {
-                    commentsByPlayer[player.name].push(...validComments);
-                }
-            }
-        });
-        return Object.entries(commentsByPlayer)
-            .map(([playerName, comments]) => ({
-                playerName,
-                comments
-            }))
-            .filter(group => group.comments.length > 0);
-    }, [vote.options, vote.players]);
-
-    const totalRaters = vote.options[0]?.ratingCount || 0;
+        return rating.players.filter(p => momStats.some(s => s.playerId === p.id));
+    
+    }, [isExpired, highestAvgRating, rating.stats, rating.players]);
+    
+    const totalRaters = rating.stats?.[0]?.ratingCount || 0;
 
     const PlayerResultRow: React.FC<{ player: Player }> = ({ player }) => {
-        const ratingInfo = playerRatings[player.id];
-        const userRatingInfo = vote.userRatings?.[player.id];
-        const isHighest = ratingInfo && ratingInfo.avg > 0 && ratingInfo.avg.toFixed(2) === highestAvgRating.toFixed(2);
+        const ratingStat = rating.stats?.find(s => s.playerId === player.id);
+        const userSubmission = rating.userSubmission?.find(s => s.playerId === player.id);
+        const isHighest = ratingStat && ratingStat.averageRating > 0 && ratingStat.averageRating.toFixed(2) === highestAvgRating.toFixed(2);
+        
+        const playerComments = rating.stats?.find(s => s.playerId === player.id)?.comments || [];
 
         return (
              <Card className={`p-4 transition-all ${isExpired && isHighest ? 'bg-amber-50 border-amber-300' : 'bg-white'}`}>
@@ -99,21 +60,31 @@ const PlayerRatingResults: React.FC<PlayerRatingResultsProps> = ({ vote, isExpir
                         </div>
                     </div>
                     <div className="text-right flex-shrink-0 pl-2">
-                        <p className="text-xl font-bold text-indigo-600">{ratingInfo ? ratingInfo.avg.toFixed(2) : 'N/A'}</p>
+                        <p className="text-xl font-bold text-indigo-600">{ratingStat ? ratingStat.averageRating.toFixed(2) : 'N/A'}</p>
                         <p className="text-xs text-gray-500">평균</p>
                     </div>
                 </div>
-                {userRatingInfo && (
+                {userSubmission && (
                     <div className="mt-3 pt-3 border-t border-gray-200">
                         <div className="flex justify-between items-start">
                             <p className="text-sm font-semibold text-gray-700">
-                                내 평점: <span className="text-lg font-bold text-gray-900">{userRatingInfo.rating.toFixed(1)}</span>
+                                내 평점: <span className="text-lg font-bold text-gray-900">{userSubmission.rating.toFixed(1)}</span>
                             </p>
-                            {userRatingInfo.comment && (
-                                <p className="text-sm text-gray-600 text-right pl-4 flex-1 italic">“{userRatingInfo.comment}”</p>
+                            {userSubmission.comment && (
+                                <p className="text-sm text-gray-600 text-right pl-4 flex-1 italic">“{userSubmission.comment}”</p>
                             )}
                         </div>
                     </div>
+                )}
+                {playerComments.length > 0 && (
+                    <details className="mt-3 pt-3 border-t border-gray-200 text-sm">
+                        <summary className="cursor-pointer font-semibold text-gray-600 hover:text-gray-800">한 줄 평 보기 ({playerComments.length})</summary>
+                        <div className="mt-2 space-y-2 max-h-40 overflow-y-auto pr-2">
+                            {playerComments.map((comment, index) => (
+                                <p key={index} className="text-gray-700 bg-gray-100 p-2 rounded-md">“{comment}”</p>
+                            ))}
+                        </div>
+                    </details>
                 )}
             </Card>
         );
@@ -156,26 +127,6 @@ const PlayerRatingResults: React.FC<PlayerRatingResultsProps> = ({ vote, isExpir
                     <h4 className="text-xl font-bold text-gray-800 mb-4">교체 선수</h4>
                     <div className="space-y-3">
                         {substitutes.map(player => <PlayerResultRow key={player.id} player={player} />)}
-                    </div>
-                </div>
-            )}
-            
-            {groupedComments.length > 0 && (
-                <div className="mt-8 pt-6 border-t">
-                    <h3 className="font-semibold text-lg text-gray-800 mb-4">팬들의 한 줄 평</h3>
-                    <div className="space-y-4">
-                       {groupedComments.map(({ playerName, comments }) => (
-                           <div key={playerName}>
-                               <h4 className="font-bold text-md text-gray-800 mb-2">{playerName}</h4>
-                               <div className="space-y-2 pl-4 border-l-2 border-gray-200">
-                                   {comments.map((comment, index) => (
-                                       <Card key={index} className="p-3 bg-gray-50/80">
-                                           <p className="text-sm text-gray-800">“ {comment} ”</p>
-                                       </Card>
-                                   ))}
-                               </div>
-                           </div>
-                       ))}
                     </div>
                 </div>
             )}

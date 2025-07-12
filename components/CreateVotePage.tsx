@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Vote, VoteKind, Player, SquadPlayer } from '../types';
@@ -27,9 +26,9 @@ const PlayerInputs: React.FC<PlayerInputsProps> = React.memo(({ playerList, onPl
                 {playerList.length > 2 && (
                     <button type="button" onClick={() => onRemovePlayer(index)} className="absolute top-2 right-2 text-gray-400 hover:text-red-500 font-bold w-6 h-6 rounded-full flex items-center justify-center bg-white border border-transparent hover:border-red-300 transition-all opacity-0 group-hover:opacity-100">&times;</button>
                 )}
-                <Input placeholder="선수 이름" value={player.name} onChange={e => onPlayerChange(index, 'name', e.target.value)} required />
+                <Input placeholder="선수/항목 이름" value={player.name} onChange={e => onPlayerChange(index, 'name', e.target.value)} required />
                 <Input placeholder="소속 팀 (선택)" value={player.team} onChange={e => onPlayerChange(index, 'team', e.target.value)} />
-                <Input placeholder="선수 사진 URL (선택)" value={player.photoUrl} onChange={e => onPlayerChange(index, 'photoUrl', e.target.value)} />
+                <Input placeholder="사진 URL (선택)" value={player.photoUrl} onChange={e => onPlayerChange(index, 'photoUrl', e.target.value)} />
             </div>
         ))}
     </>
@@ -270,7 +269,7 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote, squadPlay
                 <div>
                   <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">투표 종류</label>
                   <Select id="type" value={type} onChange={e => setType(e.target.value as VoteKind)}>
-                    {Object.values(VoteKind).filter(k => k !== VoteKind.RATING).map(t => <option key={t} value={t}>{t}</option>)}
+                    {Object.values(VoteKind).map(t => <option key={t} value={t}>{t}</option>)}
                   </Select>
                 </div>
                 <div>

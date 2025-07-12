@@ -1,6 +1,5 @@
 
-
-import { Vote, VoteKind, Player, Article, XPost, SquadPlayer, PlayerPosition } from './types';
+import { Vote, VoteKind, Player, Article, XPost, SquadPlayer, PlayerPosition, PlayerRating } from './types';
 
 export const MOCK_PLAYERS: Player[] = [
   { id: 1, name: '브루누 기마랑이스', team: '뉴캐슬 유나이티드', photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/659232-1675785723.jpg?lm=1', isStarter: true },
@@ -61,7 +60,6 @@ export const MOCK_VOTES: Vote[] = [
     imageUrl: 'https://cdn.newcastleutd.com/media/25130/all-players-celebrate-champions-league.jpg',
     endDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
     createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    players: MOCK_PLAYERS.slice(0, 6),
     options: MOCK_PLAYERS.slice(0, 6).map((p, i) => ({
       id: `mock-2-${i+1}`,
       label: p.name,
@@ -84,21 +82,20 @@ export const MOCK_VOTES: Vote[] = [
   },
 ];
 
-export const MOCK_RATINGS: Vote[] = [
+export const MOCK_PLAYER_RATINGS: PlayerRating[] = [
   {
     id: 'mock-rating-1',
     title: '뉴캐슬 vs 아스날 전 선수 평점',
-    type: VoteKind.RATING,
     description: '치열했던 빅매치! 뉴캐슬 선수들의 활약을 평가해주세요.',
     endDate: new Date().toISOString(),
     createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
     players: MOCK_PLAYERS,
-    options: MOCK_PLAYERS.map(p => ({
-        id: String(p.id),
-        label: p.name,
-        votes: Math.floor(Math.random() * 85) + 10,
-        ratingCount: 10,
-        comments: ['최고의 활약!', '조금 아쉬웠어요'],
+    stats: MOCK_PLAYERS.map(p => ({
+        playerId: p.id,
+        playerName: p.name,
+        averageRating: Math.random() * 4 + 5.5,
+        ratingCount: Math.floor(Math.random() * 50) + 10,
+        comments: ['최고의 활약!', '조금 아쉬웠어요', '다음엔 더 잘하길'],
     })),
   }
 ];

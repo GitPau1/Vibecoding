@@ -1,5 +1,4 @@
 
-
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Vote, VoteKind, VoteOption, Profile } from '../types';
@@ -8,8 +7,6 @@ import ScoreVote from './ScoreVote';
 import PlayerVote from './PlayerVote';
 import TopicVote from './TopicVote';
 import VoteResults from './VoteResults';
-import PlayerRatingPage from './PlayerRatingPage';
-import PlayerRatingResults from './PlayerRatingResults';
 import { TrophyIcon } from './icons/TrophyIcon';
 import { ImageWithFallback } from './ui/ImageWithFallback';
 import { useAuth } from '../contexts/AuthContext';
@@ -19,12 +16,10 @@ import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabaseClient';
 
 interface VotePageProps {
-  allItems: Vote[];
+  votes: Vote[];
   onVote: (voteId: string, optionId: string) => void;
-  onRatePlayers: (voteId: string, ratings: { [playerId: number]: { rating: number; comment: string | null; }; }) => void;
   onUpdateScoreVote: (voteId: string, score: string) => void;
   onEnterResult: (voteId: string, finalScore: string) => void;
-  onRequestLogin: () => void;
 }
 
 const EnterResultForm: React.FC<{ vote: Vote, onEnterResult: (voteId: string, finalScore: string) => void }> = ({ vote, onEnterResult }) => {
@@ -62,7 +57,7 @@ const EnterResultForm: React.FC<{ vote: Vote, onEnterResult: (voteId: string, fi
     );
 };
 
-const VotePage: React.FC<VotePageProps> = ({ allItems, onVote, onRatePlayers, onUpdateScoreVote, onEnterResult, onRequestLogin }) => {
+const VotePage: React.FC<VotePageProps> = ({ votes, onVote, onUpdateScoreVote, onEnterResult }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { session } = useAuth();
@@ -70,15 +65,14 @@ const VotePage: React.FC<VotePageProps> = ({ allItems, onVote, onRatePlayers, on
   
   const [winners, setWinners] = useState<Pick<Profile, 'nickname'>[]>([]);
   const [loadingWinners, setLoadingWinners] = useState(false);
-  const [viewingResults, setViewingResults] = useState(false);
 
-  const vote = allItems.find(v => v.id === id);
+  const vote = votes.find(v => v.id === id);
 
   useEffect(() => {
-    if (!vote && allItems && allItems.length > 0) {
+    if (!vote && votes.length > 0) {
       navigate('/', { replace: true });
     }
-  }, [vote, allItems, navigate]);
+  }, [vote, votes, navigate]);
   
   useEffect(() => {
     const fetchWinners = async () => {
@@ -118,7 +112,7 @@ const VotePage: React.FC<VotePageProps> = ({ allItems, onVote, onRatePlayers, on
   const totalVotes = vote.options.reduce((sum, option) => sum + option.votes, 0);
   let winnerOption: VoteOption | undefined = undefined;
 
-  if (isExpired && totalVotes > 0 && vote.type !== VoteKind.RATING) {
+  if (isExpired && totalVotes > 0) {
     const maxVotes = Math.max(...vote.options.map(o => o.votes));
     const winners = vote.options.filter(o => o.votes === maxVotes);
     if (winners.length === 1) {
@@ -127,24 +121,6 @@ const VotePage: React.FC<VotePageProps> = ({ allItems, onVote, onRatePlayers, on
   }
 
   const MainContent = () => {
-    if (vote.type === VoteKind.RATING) {
-        const hasVoted = vote.userRatings !== undefined;
-        const showResultsView = viewingResults || (session && (hasVoted || isExpired));
-
-        if (showResultsView) {
-            return <PlayerRatingResults vote={vote} isExpired={isExpired} />;
-        }
-        
-        return <PlayerRatingPage 
-                vote={vote}
-                onRate={onRatePlayers}
-                isGuest={!session}
-                onRequestLogin={onRequestLogin}
-                onShowResults={() => setViewingResults(true)}
-               />;
-    }
-
-    // For other vote types (MATCH, PLAYER, TOPIC)
     const hasVoted = vote.userVote !== undefined;
     const showResults = hasVoted || isExpired || !!vote.finalScore;
 
@@ -166,7 +142,7 @@ const VotePage: React.FC<VotePageProps> = ({ allItems, onVote, onRatePlayers, on
   
   const renderWinnerLabel = () => {
       if (!winnerOption) return null;
-      if (vote.type === VoteKind.MATCH) { // This will now only show for non-finalized results
+      if (vote.type === VoteKind.MATCH) {
           const [scoreA, scoreB] = winnerOption.label.split('-');
           return (
             <div className="flex items-center justify-center gap-4">

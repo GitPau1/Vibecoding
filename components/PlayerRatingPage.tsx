@@ -1,7 +1,6 @@
 
-
 import React, { useState } from 'react';
-import { Vote, Player } from '../types';
+import { PlayerRating, Player, PlayerRatingSubmission } from '../types';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { useToast } from '../contexts/ToastContext';
@@ -60,31 +59,31 @@ const PlayerRatingInput: React.FC<PlayerRatingInputProps> = React.memo(({ player
 
 
 interface PlayerRatingPageProps {
-    vote: Vote;
-    onRate: (voteId: string, ratings: { [playerId: number]: { rating: number; comment: string | null; }; }) => void;
+    rating: PlayerRating;
+    onRate: (ratingId: string, submissions: Omit<PlayerRatingSubmission, 'userId' | 'ratingId'>[]) => void;
     isGuest?: boolean;
     onRequestLogin?: () => void;
     onShowResults?: () => void;
 }
 
-const PlayerRatingPage: React.FC<PlayerRatingPageProps> = ({ vote, onRate, isGuest, onRequestLogin, onShowResults }) => {
-    const [ratings, setRatings] = useState<{ [key: number]: { rating: number; comment: string | null } }>({});
+const PlayerRatingPage: React.FC<PlayerRatingPageProps> = ({ rating, onRate, isGuest, onRequestLogin, onShowResults }) => {
+    const [submissions, setSubmissions] = useState<{ [key: number]: { rating: number; comment: string | null } }>({});
     const { addToast } = useToast();
 
-    const totalPlayers = (vote.players || []).length;
+    const totalPlayers = (rating.players || []).length;
 
-    const handleRatingChange = (playerId: number, rating: number) => {
-        setRatings(prev => ({
+    const handleRatingChange = (playerId: number, newRating: number) => {
+        setSubmissions(prev => ({
             ...prev,
             [playerId]: {
-                rating: rating,
+                rating: newRating,
                 comment: prev[playerId]?.comment || null
             }
         }));
     };
 
     const handleCommentChange = (playerId: number, comment: string) => {
-        setRatings(prev => {
+        setSubmissions(prev => {
             if (!prev[playerId]) {
                 return prev;
             }
@@ -99,19 +98,26 @@ const PlayerRatingPage: React.FC<PlayerRatingPageProps> = ({ vote, onRate, isGue
     };
 
     const handleSubmit = () => {
-        const ratedPlayersCount = Object.values(ratings).filter(r => r.rating !== undefined).length;
+        const ratedPlayersCount = Object.values(submissions).filter(r => r.rating !== undefined).length;
         if (ratedPlayersCount < totalPlayers) {
             addToast('모든 선수의 평점을 매겨주세요.', 'error');
             return;
         }
-        onRate(vote.id, ratings);
+        
+        const submissionsPayload = Object.entries(submissions).map(([playerId, data]) => ({
+            playerId: Number(playerId),
+            rating: data.rating,
+            comment: data.comment,
+        }));
+
+        onRate(rating.id, submissionsPayload);
     };
 
     return (
         <div className="space-y-8">
             <div className="space-y-4">
-                {vote.players?.map((player, index) => {
-                    const prevPlayer = vote.players?.[index - 1];
+                {rating.players?.map((player, index) => {
+                    const prevPlayer = rating.players?.[index - 1];
                     const isFirstStarter = player.isStarter && (index === 0 || !prevPlayer?.isStarter);
                     const isFirstSubstitute = !player.isStarter && (index === 0 || !!prevPlayer?.isStarter);
 
@@ -125,7 +131,7 @@ const PlayerRatingPage: React.FC<PlayerRatingPageProps> = ({ vote, onRate, isGue
                             )}
                             <PlayerRatingInput 
                                 player={player} 
-                                ratingData={ratings[player.id]}
+                                ratingData={submissions[player.id]}
                                 onRatingChange={handleRatingChange}
                                 onCommentChange={handleCommentChange}
                             />

@@ -1,7 +1,8 @@
+
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { VoteKind, Player, SquadPlayer } from '../types';
-import { VoteCreationData } from '../App';
+import { Player, SquadPlayer } from '../types';
+import { PlayerRatingCreationData } from '../App';
 import { Card } from './ui/Card';
 import { Input } from './ui/Input';
 import { Button } from './ui/Button';
@@ -64,7 +65,7 @@ const PlayerInputs: React.FC<PlayerInputsProps> = React.memo(({ playerList, list
 });
 
 interface CreateRatingPageProps {
-  onCreateRating: (voteData: VoteCreationData) => void;
+  onCreateRating: (ratingData: PlayerRatingCreationData) => void;
   squadPlayers: SquadPlayer[];
 }
 
@@ -175,7 +176,7 @@ const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating, squ
         ...validSubstitutes.map(p => ({...p, isStarter: false})),
     ];
 
-    const votePlayers: Player[] = allPlayers.map((p, index) => ({
+    const ratingPlayers: Player[] = allPlayers.map((p, index) => ({
         id: index + 1,
         name: p.name.trim(),
         team: p.team.trim(),
@@ -186,11 +187,9 @@ const CreateRatingPage: React.FC<CreateRatingPageProps> = ({ onCreateRating, squ
     onCreateRating({ 
         title: title.trim(), 
         description: description.trim(), 
-        type: VoteKind.RATING, 
         endDate, 
         imageUrl,
-        players: votePlayers,
-        options: [] // Options are generated from players in the handler
+        players: ratingPlayers,
     });
   };
 
