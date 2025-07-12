@@ -1,11 +1,9 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/Button';
 import { PlusIcon } from './icons/PlusIcon';
 import { UsersIcon } from './icons/UsersIcon';
 import { useAuth } from '../contexts/AuthContext';
-import { CalendarDaysIcon } from './icons/CalendarDaysIcon';
 
 const Header: React.FC = () => {
   const navigate = useNavigate();
@@ -33,10 +31,6 @@ const Header: React.FC = () => {
               <span className="text-sm font-semibold text-gray-700 hidden sm:block">
                 환영합니다, {profile?.nickname || '사용자'}님!
               </span>
-              <Button variant="outline" onClick={() => navigate('/matches')} size="md">
-                  <CalendarDaysIcon className="w-4 h-4 sm:mr-2" />
-                  <span className="hidden sm:inline">경기 관리</span>
-              </Button>
               <Button variant="outline" onClick={() => navigate('/squad')} size="md">
                   <UsersIcon className="w-4 h-4 sm:mr-2" />
                   <span className="hidden sm:inline">스쿼드 관리</span>

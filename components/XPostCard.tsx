@@ -92,7 +92,7 @@ const XPostCard: React.FC<XPostCardProps> = ({ post }) => {
                   <XSocialIcon className="w-3 h-3 mr-1.5" />
                   최신 소식
                 </span>
-                <span className="text-xs text-gray-500">{new Date(post.createdAt).toLocaleDateString()}</span>
+                <span className="text-xs text-gray-500">by {post.author?.nickname || '익명'}</span>
             </div>
             <p className="text-base text-gray-700 mt-3">{post.description}</p>
         </div>

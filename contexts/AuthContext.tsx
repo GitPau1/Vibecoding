@@ -1,12 +1,11 @@
 
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase, Database } from '../lib/supabaseClient';
+import { AuthSession } from '../types';
 import { AuthError, User, Session } from '@supabase/supabase-js';
 import { useToast } from './ToastContext';
 
 type UserProfile = Database['public']['Tables']['profiles']['Row'];
-type AuthSession = Session;
 
 interface AuthContextType {
   session: AuthSession | null;

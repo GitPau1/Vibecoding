@@ -48,8 +48,9 @@ const ArticleCard: React.FC<ArticleCardProps> = ({ article }) => {
             <p className="text-sm text-gray-600 line-clamp-2 h-10">{plainTextBody}</p>
         </div>
         <div className="border-t border-gray-200 px-6 py-3 bg-gray-50 rounded-b-2xl">
-            <div className="flex justify-end items-center text-xs text-gray-500">
-                {new Date(article.createdAt).toLocaleDateString()}
+            <div className="flex justify-between items-center text-xs text-gray-500">
+                <span>{article.author?.nickname || '익명'}</span>
+                <span>{new Date(article.createdAt).toLocaleDateString()}</span>
             </div>
         </div>
     </Card>

@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Vote, VoteKind, VoteOption } from '../types';
 import { Card } from './ui/Card';
-import MatchVote from './MatchVote';
+import ScoreVote from './ScoreVote';
 import PlayerVote from './PlayerVote';
 import TopicVote from './TopicVote';
 import VoteResults from './VoteResults';
@@ -58,6 +58,8 @@ const VotePage: React.FC<VotePageProps> = ({ votes, ratings, onVote, onRatePlaye
 
   const renderVoteComponent = () => {
     switch (vote.type) {
+      case VoteKind.MATCH:
+        return <ScoreVote vote={vote} onVote={(scoreString) => onVote(vote.id, scoreString)} />;
       case VoteKind.PLAYER:
         return <PlayerVote vote={vote} onVote={(optionId) => onVote(vote.id, optionId)} />;
       case VoteKind.TOPIC:
@@ -74,6 +76,21 @@ const VotePage: React.FC<VotePageProps> = ({ votes, ratings, onVote, onRatePlaye
         return <PlayerRatingResults vote={vote} />;
     }
     return <VoteResults vote={vote} isExpired={isExpired} />;
+  }
+
+  const renderWinnerLabel = () => {
+      if (!winner) return null;
+      if (vote.type === VoteKind.MATCH) {
+          const [scoreA, scoreB] = winner.label.split('-');
+          return (
+            <div className="flex items-center justify-center gap-4">
+                <span className="text-2xl md:text-3xl font-bold text-gray-900">{vote.teamA}</span>
+                <span className="text-2xl md:text-3xl font-bold text-indigo-600 bg-indigo-100 px-3 py-1 rounded-lg">{scoreA} : {scoreB}</span>
+                <span className="text-2xl md:text-3xl font-bold text-gray-900">{vote.teamB}</span>
+            </div>
+          );
+      }
+      return <p className="text-2xl md:text-3xl font-bold text-gray-900">{winner.label}</p>
   }
 
 
@@ -97,7 +114,7 @@ const VotePage: React.FC<VotePageProps> = ({ votes, ratings, onVote, onRatePlaye
                 <TrophyIcon className="w-6 h-6 mr-2" />
                 <p className="font-semibold text-base">투표 최종 1위</p>
               </div>
-              <p className="text-2xl md:text-3xl font-bold text-gray-900">{winner.label}</p>
+              {renderWinnerLabel()}
             </div>
           </div>
         )}

@@ -44,7 +44,7 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote, squadPlay
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [type, setType] = useState<VoteKind>(VoteKind.TOPIC);
+  const [type, setType] = useState<VoteKind>(VoteKind.MATCH);
   const [endDate, setEndDate] = useState('');
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -55,6 +55,10 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote, squadPlay
     { name: '', team: '', photoUrl: '' }, { name: '', team: '', photoUrl: '' },
   ]);
 
+  // For Match type
+  const [teamA, setTeamA] = useState('');
+  const [teamB, setTeamB] = useState('');
+
   // For Topic type
   const [options, setOptions] = useState<{label: string}[]>([{ label: '' }, { label: '' }]);
 
@@ -62,8 +66,11 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote, squadPlay
     // Reset options when type changes
     if (type === VoteKind.PLAYER) {
         setPlayers([{ name: '', team: '', photoUrl: '' }, { name: '', team: '', photoUrl: '' }]);
-    } else {
+    } else if (type === VoteKind.TOPIC) {
         setOptions([{ label: '' }, { label: '' }]);
+    } else if (type === VoteKind.MATCH) {
+        setTeamA('');
+        setTeamB('');
     }
   }, [type]);
 
@@ -125,6 +132,8 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote, squadPlay
     e.preventDefault();
     let voteOptions: { label: string }[] = [];
     let votePlayers: Player[] | undefined = undefined;
+    let voteTeamA: string | undefined = undefined;
+    let voteTeamB: string | undefined = undefined;
 
     if (type === VoteKind.PLAYER) {
         const validPlayers = players.filter(p => p.name.trim() !== '');
@@ -139,6 +148,14 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote, squadPlay
             team: p.team.trim(),
             photoUrl: p.photoUrl.trim() || `https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(p.name.trim())}`,
         }));
+    } else if (type === VoteKind.MATCH) {
+        if (!teamA.trim() || !teamB.trim()) {
+            addToast("경기할 두 팀의 이름을 모두 입력해주세요.", 'error');
+            return;
+        }
+        voteTeamA = teamA.trim();
+        voteTeamB = teamB.trim();
+        voteOptions = []; // No predefined options for score prediction
     } else { // TOPIC
         const validOptions = options.filter(opt => opt.label.trim() !== '');
         if (validOptions.length < 2) {
@@ -148,7 +165,7 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote, squadPlay
         voteOptions = validOptions.map(opt => ({label: opt.label.trim()}));
     }
     
-    onCreateVote({ title: title.trim(), description: description.trim(), type, endDate, imageUrl, options: voteOptions, players: votePlayers });
+    onCreateVote({ title: title.trim(), description: description.trim(), type, endDate, imageUrl, options: voteOptions, players: votePlayers, teamA: voteTeamA, teamB: voteTeamB });
   };
 
   const renderOptionFields = () => {
@@ -174,6 +191,15 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote, squadPlay
             </Button>
           </div>
         )
+      case VoteKind.MATCH:
+        return (
+             <div className="space-y-4">
+                 <p className="text-sm text-gray-600">스코어를 예측할 두 팀의 이름을 입력하세요.</p>
+                 <Input placeholder="홈 팀 (Team A)" value={teamA} onChange={e => setTeamA(e.target.value)} required />
+                 <Input placeholder="어웨이 팀 (Team B)" value={teamB} onChange={e => setTeamB(e.target.value)} required />
+                 <p className="text-xs text-gray-500 mt-2 p-3 bg-gray-50 rounded-md">사용자들이 직접 스코어를 입력하여 투표하게 됩니다.</p>
+             </div>
+        )
       case VoteKind.TOPIC:
         return (
             <div className="space-y-4">
@@ -192,8 +218,6 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote, squadPlay
               </Button>
             </div>
         )
-      default:
-        return null;
     }
   }
 
@@ -209,11 +233,11 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote, squadPlay
       )}
       <div className="max-w-4xl mx-auto">
         <Card className="p-6 md:p-8">
-          <h2 className="text-2xl font-bold mb-6">커뮤니티 투표 생성</h2>
+          <h2 className="text-2xl font-bold mb-6">새로운 투표 생성</h2>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">투표 제목</label>
-              <Input id="title" value={title} onChange={e => setTitle(e.target.value)} placeholder="예: 이번 시즌 최고의 선수는?" required />
+              <Input id="title" value={title} onChange={e => setTitle(e.target.value)} placeholder="예: 다음 경기 스코어를 맞춰보세요" required />
             </div>
             <div>
               <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">설명 (선택)</label>
@@ -246,10 +270,7 @@ const CreateVotePage: React.FC<CreateVotePageProps> = ({ onCreateVote, squadPlay
                 <div>
                   <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">투표 종류</label>
                   <Select id="type" value={type} onChange={e => setType(e.target.value as VoteKind)}>
-                    {Object.values(VoteKind)
-                        .filter(k => k !== VoteKind.RATING && k !== VoteKind.MATCH_PREDICTION)
-                        .map(t => <option key={t} value={t}>{t}</option>)
-                    }
+                    {Object.values(VoteKind).filter(k => k !== VoteKind.RATING).map(t => <option key={t} value={t}>{t}</option>)}
                   </Select>
                 </div>
                 <div>

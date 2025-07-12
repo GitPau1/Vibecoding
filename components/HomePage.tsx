@@ -1,6 +1,7 @@
 
+
 import React, { useState, useMemo } from 'react';
-import { Vote, Article, XPost, VoteKind, Match } from '../types';
+import { Vote, Article, XPost, VoteKind } from '../types';
 import VoteCard from './VoteCard';
 import ArticleCard from './ArticleCard';
 import XPostCard from './XPostCard';
@@ -11,7 +12,6 @@ interface HomePageProps {
   ratings: Vote[];
   articles: Article[];
   xPosts: XPost[];
-  matches: Match[];
 }
 
 type CarouselItem = {
@@ -23,27 +23,16 @@ type CarouselItem = {
   category: string;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ votes, ratings, articles, xPosts, matches }) => {
+const HomePage: React.FC<HomePageProps> = ({ votes, ratings, articles, xPosts }) => {
   const [activeTab, setActiveTab] = useState<'match' | 'vote' | 'articles' | 'x-posts'>('match');
 
   const matchItems = useMemo(() => {
-    const now = new Date();
-    const twoDaysFromNow = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
-
-    const visiblePredictions = votes
-        .filter(v => {
-            if (v.type !== VoteKind.MATCH_PREDICTION || !v.match_id) return false;
-            const match = matches.find(m => m.id === v.match_id);
-            if (!match) return false;
-            
-            const matchTime = new Date(match.match_time);
-            // Show if match is in the future AND within the next 2 days
-            return matchTime > now && matchTime <= twoDaysFromNow;
-        });
-
-    const combined = [...visiblePredictions, ...ratings];
+    const combined = [
+        ...votes.filter(v => v.type === VoteKind.MATCH), 
+        ...ratings
+    ];
     return combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [votes, ratings, matches]);
+  }, [votes, ratings]);
 
   const voteItems = useMemo(() => {
     return votes.filter(v => v.type === VoteKind.PLAYER || v.type === VoteKind.TOPIC)
@@ -56,7 +45,7 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, articles, xPosts, m
 
   const recentItems: CarouselItem[] = useMemo(() => {
     const allContent = [
-        ...votes.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: item.type === VoteKind.MATCH_PREDICTION ? `/prediction/${item.id}` : `/vote/${item.id}`, category: item.type })),
+        ...votes.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/vote/${item.id}`, category: item.type })),
         ...ratings.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/rating/${item.id}`, category: item.type })),
         ...articles.map(item => ({ id: item.id, title: item.title, imageUrl: item.imageUrl, createdAt: item.createdAt, path: `/article/${item.id}`, category: '아티클' })),
         ...xPosts.map(item => ({ id: item.id, title: item.description, imageUrl: undefined, createdAt: item.createdAt, path: `/x-post/${item.id}`, category: '최신 소식' })),
@@ -100,7 +89,7 @@ const HomePage: React.FC<HomePageProps> = ({ votes, ratings, articles, xPosts, m
                   </div>
                 ) : (
                   <div className="text-center py-12 px-6 bg-gray-100 rounded-2xl">
-                    <p className="text-gray-500">곧 시작될 경기나 진행중인 평점이 없습니다.</p>
+                    <p className="text-gray-500">아직 매치 관련 콘텐츠가 없습니다.</p>
                   </div>
                 )}
               </section>
